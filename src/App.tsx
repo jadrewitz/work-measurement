@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import * as XLSX from "xlsx";
 import { printReportHTML, exportReportHTML } from "./Report";
 import "./ui.css";
@@ -274,29 +274,33 @@ function HelpModal({ open, onClose }: { open: boolean; onClose: () => void }) {
         <div className="body">
           <h4>General Info</h4>
           <p>
-            Use <b>Type</b> for priority category and <b>Work Type</b> for the nature of work. Enable <b>Multi-day</b> to add End Date.
-          <p>
-            Use <b>Type</b> for priority category and <b>Work Type</b> for the nature of work. Enable <b>Multi-day</b> to add End Date.
-            You can also set an <b>Observer</b> name; we remember your last entry.
+            Use <b>Type</b> for priority category and <b>Work Type</b> for the nature of work. Enable <b>Multi-day</b> to add End Date. You can
+            also set an <b>Observer</b> name; we remember your last entry.
           </p>
+
           <h4>Time</h4>
           <p>
             <b>Actual Time</b> is wall-clock from first <i>Start</i> to last <i>Stop</i>/<i>Delete</i>; if anyone is still working/paused, it runs
             until now. <b>Touch</b> sums active work; <b>Idle</b> sums paused time.
           </p>
+
           <h4>Employees</h4>
           <p>Each card has Role and Skill (with “Other…”). Start, Pause, Stop record entries in the Time Log.</p>
+
           <h4>Task Log</h4>
           <p>Add notes. Sort newest/oldest. Notes can be deleted.</p>
+
           <h4>Time Log</h4>
           <p>Captures Start/Pause/Stop/Delete with timestamp and optional reason/comment. You can delete single items or all.</p>
+
           <h4>Exporting</h4>
-          <p>CSV & Excel include KPIs, Daily breakdown, and reasons. Export HTML opens a styled report for PDF.</p>
+          <p>CSV &amp; Excel include KPIs, Daily breakdown, and reasons. Export HTML opens a styled report for PDF.</p>
+
           <h4>Report Printing</h4>
           <p>Use Print Report. In Safari, Export HTML → <i>File → Export as PDF</i>.</p>
+
           <h4>Clearing Data</h4>
-            <b>Clear Saved Data</b> wipes everything from this browser only (you’ll confirm first).
-          </p>
+          <p><b>Clear Saved Data</b> wipes everything from this browser only (you’ll confirm first).</p>
         </div>
         <footer>
           <button className="btn" onClick={onClose}>
@@ -408,8 +412,21 @@ export default function WorkMeasurementApp() {
 
   // Help + reason modal state
   const [showHelp, setShowHelp] = useState(false);
+  const [exportOpen, setExportOpen] = useState(false);
+  const toggleExport = () => setExportOpen((v) => !v);
   const [pendingReason, setPendingReason] = useState<{ action: "pause" | "stop"; id: number } | null>(null);
-
+  const menuRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    if (!exportOpen) return;
+    const onDocClick = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setExportOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", onDocClick);
+    return () => document.removeEventListener("mousedown", onDocClick);
+  }, [exportOpen]);
+  
   // Persist
   useEffect(() => {
     safeSave({ info, employees, taskLog, timeLog });
@@ -977,29 +994,48 @@ export default function WorkMeasurementApp() {
     <div className="app">
       <header className="app-header">
         <h1 className="app-title">
+          <img src="/WorkMeasurmentIcon.png" alt="App icon" className="app-icon" />
           Work Measurement Analysis <span className="badge">v2</span>
         </h1>
         <div className="toolbar">
-          <button className="btn" onClick={exportSummaryCSV}>
-            Export CSV
-          </button>
-          <button className="btn" onClick={exportExcel}>
-            Export Excel
-          </button>
-          <button
-            className="btn"
-            onClick={() => exportReportHTML(info, employees, timeLog, taskLog, liveTimes, msToTime, fmtStamp)}
+          <div
+            className="export-menu"
+            ref={menuRef}
+            data-open={exportOpen ? "true" : "false"}
+            style={{ position: "relative" }}
           >
-            Export HTML
-          </button>
-          <button className="btn" onClick={printReport}>
-            Print Report
+            <button className="btn" onClick={toggleExport}>
+              Export ▾
+            </button>
+            <div
+              className="menu"
+              style={{ display: exportOpen ? "grid" : "none" }}
+              onClick={() => setExportOpen(false)}
+            >
+              <button className="btn ghost" onClick={exportSummaryCSV}>
+                CSV (Summary)
+              </button>
+              <button className="btn ghost" onClick={exportExcel}>
+                Excel (Full)
+              </button>
+              <button
+                className="btn ghost"
+                onClick={() =>
+                  exportReportHTML(info, employees, timeLog, taskLog, liveTimes, msToTime, fmtStamp)
+                }
+              >
+                HTML Report
+              </button>
+              <button className="btn ghost" onClick={printReport}>
+                Print Report
+              </button>
+            </div>
+          </div>
+          <button className="btn red" onClick={clearSaved}>
+            Clear Saved Data
           </button>
           <button className="help-btn" onClick={() => setShowHelp(true)}>
             Help
-          </button>
-          <button className="btn red" onClick={clearSaved}>
-            Clear Saved Data
           </button>
         </div>
       </header>
