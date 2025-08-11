@@ -6,8 +6,19 @@
     ".map": "application/json",
     ".json": "application/json"
   },
+  "navigationFallback": {
+    "rewrite": "/index.html",
+    "exclude": [
+      "/assets/*",
+      "/*.js",
+      "/*.css",
+      "/*.mjs",
+      "/favicon.ico",
+      "/robots.txt",
+      "/manifest.webmanifest"
+    ]
+  },
   "routes": [
-    { "route": "/assets/*", "allowedRoles": ["anonymous"] },
-    { "route": "/*", "rewrite": "/index.html" }
+    { "route": "/assets/*", "allowedRoles": ["anonymous"] }
   ]
 }
