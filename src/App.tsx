@@ -1040,6 +1040,145 @@ export default function WorkMeasurementApp() {
         </div>
       </header>
 
+<section className="section">
+        <h2>Employees</h2>
+        <div className="grid-auto" style={{ marginTop: 8 }}>
+          <div style={{ display: "flex", gap: 8 }}>
+            <input
+              type="text"
+              value={employeeName}
+              onChange={(e) => setEmployeeName(e.target.value)}
+              placeholder="Employee name"
+              style={{ flex: 1 }}
+            />
+            <button className="btn blue" onClick={addEmployee}>
+              Add
+            </button>
+          </div>
+        </div>
+
+        <ul className="card-list">
+          {employees.map((emp) => {
+            const { active, idle, total } = liveTimes(emp);
+
+            const setRole = (v: string) =>
+              setEmployees((prev) => prev.map((e) => (e.id === emp.id ? { ...e, role: v } : e)));
+            const setSkill = (v: string) =>
+              setEmployees((prev) => prev.map((e) => (e.id === emp.id ? { ...e, skill: v } : e)));
+
+            const roleIsPreset = emp.role && ROLE_OPTIONS.includes(emp.role as any);
+            const skillIsPreset = emp.skill && SKILL_OPTIONS.includes(emp.skill as any);
+
+            return (
+              <li key={emp.id} className="emp">
+                <div>
+                  <div style={{ fontWeight: 700, fontSize: 16 }}>{emp.name}</div>
+
+                  {/* Role + Skill */}
+                  <div style={{ display: "grid", gridTemplateColumns: "minmax(140px, 1fr) minmax(140px, 1fr)", gap: 8, margin: "6px 0 8px" }}>
+                    <div>
+                      <div className="meta" style={{ marginBottom: 4 }}>
+                        Role
+                      </div>
+                      <select
+                        className="btn"
+                        value={roleIsPreset ? emp.role : "Other…"}
+                        onChange={(e) => {
+                          const v = e.target.value;
+                          if (v === "Other…") setRole("");
+                          else setRole(v);
+                        }}
+                      >
+                        {ROLE_OPTIONS.map((r) => (
+                          <option key={r} value={r}>
+                            {r}
+                          </option>
+                        ))}
+                      </select>
+                      {!roleIsPreset && (
+                        <input
+                          style={{ marginTop: 6, width: "100%" }}
+                          placeholder="Role (free text)"
+                          value={emp.role || ""}
+                          onChange={(e) => setRole(e.target.value)}
+                        />
+                      )}
+                    </div>
+
+                    <div>
+                      <div className="meta" style={{ marginBottom: 4 }}>
+                        Skill
+                      </div>
+                      <select
+                        className="btn"
+                        value={skillIsPreset ? emp.skill : "Other…"}
+                        onChange={(e) => {
+                          const v = e.target.value;
+                          if (v === "Other…") setSkill("");
+                          else setSkill(v);
+                        }}
+                      >
+                        {SKILL_OPTIONS.map((s) => (
+                          <option key={s} value={s}>
+                            {s}
+                          </option>
+                        ))}
+                      </select>
+                      {!skillIsPreset && (
+                        <input
+                          style={{ marginTop: 6, width: "100%" }}
+                          placeholder="Skill (free text)"
+                          value={emp.skill || ""}
+                          onChange={(e) => setSkill(e.target.value)}
+                        />
+                      )}
+                    </div>
+                  </div>
+
+                  <div>Status: {emp.status}</div>
+                  <div>Total: {msToTime(total)}</div>
+                  <div>Touch Labor (live): {msToTime(active)}</div>
+                  <div>Idle Time (live): {msToTime(idle)}</div>
+                  <div className="meta">Logs: {emp.logs.length}</div>
+                </div>
+                <div style={{ display: "flex", gap: 8 }}>
+                  <button
+                    className="btn green"
+                    onClick={() => startTimer(emp.id)}
+                    disabled={emp.status === "active"}
+                    aria-disabled={emp.status === "active"}
+                    title={emp.status === "active" ? "Already running" : "Start timer"}
+                  >
+                    Start
+                  </button>
+                  <button
+                    className="btn yellow"
+                    onClick={() => requestPause(emp.id)}
+                    disabled={emp.status !== "active"}
+                    aria-disabled={emp.status !== "active"}
+                    title={emp.status !== "active" ? "Nothing to pause" : "Pause timer"}
+                  >
+                    Pause
+                  </button>
+                  <button
+                    className="btn red"
+                    onClick={() => requestStop(emp.id)}
+                    disabled={emp.status === "idle"}
+                    aria-disabled={emp.status === "idle"}
+                    title={emp.status === "idle" ? "Nothing to stop" : "Stop timer"}
+                  >
+                    Stop
+                  </button>
+                  <button className="btn ghost" onClick={() => deleteEmployee(emp.id)} title="Remove employee">
+                    Remove
+                  </button>
+                </div>
+              </li>
+            );
+          })}
+        </ul>
+      </section>
+      
       <section className="section card">
         <h2>General Info</h2>
 
@@ -1294,144 +1433,7 @@ export default function WorkMeasurementApp() {
         </div>
       </section>
 
-      <section className="section">
-        <h2>Employees</h2>
-        <div className="grid-auto" style={{ marginTop: 8 }}>
-          <div style={{ display: "flex", gap: 8 }}>
-            <input
-              type="text"
-              value={employeeName}
-              onChange={(e) => setEmployeeName(e.target.value)}
-              placeholder="Employee name"
-              style={{ flex: 1 }}
-            />
-            <button className="btn blue" onClick={addEmployee}>
-              Add
-            </button>
-          </div>
-        </div>
-
-        <ul className="card-list">
-          {employees.map((emp) => {
-            const { active, idle, total } = liveTimes(emp);
-
-            const setRole = (v: string) =>
-              setEmployees((prev) => prev.map((e) => (e.id === emp.id ? { ...e, role: v } : e)));
-            const setSkill = (v: string) =>
-              setEmployees((prev) => prev.map((e) => (e.id === emp.id ? { ...e, skill: v } : e)));
-
-            const roleIsPreset = emp.role && ROLE_OPTIONS.includes(emp.role as any);
-            const skillIsPreset = emp.skill && SKILL_OPTIONS.includes(emp.skill as any);
-
-            return (
-              <li key={emp.id} className="emp">
-                <div>
-                  <div style={{ fontWeight: 700, fontSize: 16 }}>{emp.name}</div>
-
-                  {/* Role + Skill */}
-                  <div style={{ display: "grid", gridTemplateColumns: "minmax(140px, 1fr) minmax(140px, 1fr)", gap: 8, margin: "6px 0 8px" }}>
-                    <div>
-                      <div className="meta" style={{ marginBottom: 4 }}>
-                        Role
-                      </div>
-                      <select
-                        className="btn"
-                        value={roleIsPreset ? emp.role : "Other…"}
-                        onChange={(e) => {
-                          const v = e.target.value;
-                          if (v === "Other…") setRole("");
-                          else setRole(v);
-                        }}
-                      >
-                        {ROLE_OPTIONS.map((r) => (
-                          <option key={r} value={r}>
-                            {r}
-                          </option>
-                        ))}
-                      </select>
-                      {!roleIsPreset && (
-                        <input
-                          style={{ marginTop: 6, width: "100%" }}
-                          placeholder="Role (free text)"
-                          value={emp.role || ""}
-                          onChange={(e) => setRole(e.target.value)}
-                        />
-                      )}
-                    </div>
-
-                    <div>
-                      <div className="meta" style={{ marginBottom: 4 }}>
-                        Skill
-                      </div>
-                      <select
-                        className="btn"
-                        value={skillIsPreset ? emp.skill : "Other…"}
-                        onChange={(e) => {
-                          const v = e.target.value;
-                          if (v === "Other…") setSkill("");
-                          else setSkill(v);
-                        }}
-                      >
-                        {SKILL_OPTIONS.map((s) => (
-                          <option key={s} value={s}>
-                            {s}
-                          </option>
-                        ))}
-                      </select>
-                      {!skillIsPreset && (
-                        <input
-                          style={{ marginTop: 6, width: "100%" }}
-                          placeholder="Skill (free text)"
-                          value={emp.skill || ""}
-                          onChange={(e) => setSkill(e.target.value)}
-                        />
-                      )}
-                    </div>
-                  </div>
-
-                  <div>Status: {emp.status}</div>
-                  <div>Total: {msToTime(total)}</div>
-                  <div>Touch Labor (live): {msToTime(active)}</div>
-                  <div>Idle Time (live): {msToTime(idle)}</div>
-                  <div className="meta">Logs: {emp.logs.length}</div>
-                </div>
-                <div style={{ display: "flex", gap: 8 }}>
-                  <button
-                    className="btn green"
-                    onClick={() => startTimer(emp.id)}
-                    disabled={emp.status === "active"}
-                    aria-disabled={emp.status === "active"}
-                    title={emp.status === "active" ? "Already running" : "Start timer"}
-                  >
-                    Start
-                  </button>
-                  <button
-                    className="btn yellow"
-                    onClick={() => requestPause(emp.id)}
-                    disabled={emp.status !== "active"}
-                    aria-disabled={emp.status !== "active"}
-                    title={emp.status !== "active" ? "Nothing to pause" : "Pause timer"}
-                  >
-                    Pause
-                  </button>
-                  <button
-                    className="btn red"
-                    onClick={() => requestStop(emp.id)}
-                    disabled={emp.status === "idle"}
-                    aria-disabled={emp.status === "idle"}
-                    title={emp.status === "idle" ? "Nothing to stop" : "Stop timer"}
-                  >
-                    Stop
-                  </button>
-                  <button className="btn ghost" onClick={() => deleteEmployee(emp.id)} title="Remove employee">
-                    Remove
-                  </button>
-                </div>
-              </li>
-            );
-          })}
-        </ul>
-      </section>
+      
 
       <section className="section card">
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
