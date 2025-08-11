@@ -150,7 +150,26 @@ select:focus, select.btn:focus{
   padding:14px; border:1px solid var(--line); border-radius:12px;
   background:linear-gradient(180deg,#0f1735,#0f1731); color:#ffffff;
 }
+
 .emp .meta{ margin:6px 0 0; font-size:12px; color:#ffffff; }
+
+/* Single-line status row at bottom of each card */
+.card-status{
+  margin-top:10px;
+  padding-top:8px;
+  border-top:1px solid var(--line);
+  display:flex;
+  flex-wrap:wrap;
+  gap:8px;
+  justify-content:space-between;
+  font-size:13px;
+  color:var(--ink);
+}
+
+.card-status .state{ font-weight:700; }
+.card-status .state-active{ color:var(--success); }  /* Active = green */
+.card-status .state-paused{ color:var(--warn); }     /* Paused = yellow */
+.card-status .state-stopped{ color:var(--danger); }  /* Stopped = red */
 
 /* Tables */
 .table-wrap{

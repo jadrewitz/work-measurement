@@ -1041,7 +1041,7 @@ export default function WorkMeasurementApp() {
       </header>
 
 <section className="section">
-        <h2>Employees</h2>
+        <h2>Employees <span className="meta">(add each employee involved with the task)</span></h2>
         <div className="grid-auto" style={{ marginTop: 8 }}>
           <div style={{ display: "flex", gap: 8 }}>
             <input
@@ -1147,11 +1147,6 @@ export default function WorkMeasurementApp() {
                     </div>
                   </div>
 
-                  <div>Status: {emp.status}</div>
-                  <div>Total: {msToTime(total)}</div>
-                  <div>Touch Labor (live): {msToTime(active)}</div>
-                  <div>Idle Time (live): {msToTime(idle)}</div>
-                  <div className="meta">Logs: {emp.logs.length}</div>
                 </div>
                 <div style={{ display: "flex", gap: 8 }}>
                   <button
@@ -1184,6 +1179,31 @@ export default function WorkMeasurementApp() {
                   <button className="btn ghost" onClick={() => deleteEmployee(emp.id)} title="Remove employee">
                     Remove
                   </button>
+                </div>
+                <div
+                  className="card-status"
+                  style={{ flexBasis: "100%" }}
+                >
+                  <span
+                    className={
+                      "state " +
+                      (emp.status === "active"
+                        ? "state-active"
+                        : emp.status === "paused"
+                        ? "state-paused"
+                        : "state-stopped")
+                    }
+                  >
+                    {emp.status === "idle"
+                      ? "Stopped"
+                      : emp.status === "paused"
+                      ? "Paused"
+                      : "Active"}
+                  </span>
+                  <span>Total: {msToTime(total)}</span>
+                  <span>Touch: {msToTime(active)}</span>
+                  <span>Idle: {msToTime(idle)}</span>
+                  <span>Logs: {emp.logs.length}</span>
                 </div>
               </li>
             );
