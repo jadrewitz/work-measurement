@@ -148,7 +148,7 @@ function getJpegOrientation(arrayBuffer: ArrayBuffer): number | null {
     offset += 2;
     if (marker === 0xFFE1) {
       // APP1 segment (EXIF)
-      const exifLength = view.getUint16(offset, false);
+      // Skip EXIF segment length (we don't need the value)
       offset += 2;
       // "Exif" (0x45786966) + null
       if (view.getUint32(offset, false) !== 0x45786966) return null;
