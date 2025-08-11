@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import * as XLSX from "xlsx";
 import { printReportHTML, exportReportHTML } from "./Report";
 import "./ui.css";
+import heic2any from "heic2any";
 
 /* ---------- Types ---------- */
 type EmpStatus = "idle" | "active" | "paused";
@@ -36,6 +37,13 @@ interface TimeLogEntry {
   comment?: string;
 }
 
+interface PhotoItem {
+  id: number;
+  dataUrl: string;   // already resized and auto-rotated
+  name?: string;
+  caption?: string;
+}
+
 interface AppInfo {
   date: string;
   endDate: string;
@@ -57,6 +65,7 @@ interface AppState {
   employees: Employee[];
   taskLog: TaskEntry[];
   timeLog: TimeLogEntry[];
+  photos: PhotoItem[];
 }
 
 /* ---------- Options ---------- */
@@ -128,6 +137,152 @@ function fmtStamp(at: number, withDate: boolean) {
   return withDate ? `${d.toLocaleDateString()} ${d.toLocaleTimeString()}` : d.toLocaleTimeString();
 }
 
+// --- Image helpers (resize + auto-rotate) ---
+function getJpegOrientation(arrayBuffer: ArrayBuffer): number | null {
+  const view = new DataView(arrayBuffer);
+  if (view.getUint16(0, false) !== 0xFFD8) return null; // not a JPEG
+  let offset = 2;
+  const length = view.byteLength;
+  while (offset < length) {
+    const marker = view.getUint16(offset, false);
+    offset += 2;
+    if (marker === 0xFFE1) {
+      // APP1 segment (EXIF)
+      const exifLength = view.getUint16(offset, false);
+      offset += 2;
+      // "Exif" (0x45786966) + null
+      if (view.getUint32(offset, false) !== 0x45786966) return null;
+      offset += 6;
+      const tiffOffset = offset;
+      const little = view.getUint16(tiffOffset, false) === 0x4949;
+      const firstIFDOffset = view.getUint32(tiffOffset + 4, little);
+      let dirOffset = tiffOffset + firstIFDOffset;
+      const entries = view.getUint16(dirOffset, little);
+      dirOffset += 2;
+      for (let i = 0; i < entries; i++) {
+        const entryOffset = dirOffset + i * 12;
+        const tag = view.getUint16(entryOffset, little);
+        if (tag === 0x0112) { // Orientation
+          const val = view.getUint16(entryOffset + 8, little);
+          return val;
+        }
+      }
+      return null;
+    } else if ((marker & 0xFFF0) !== 0xFFE0) {
+      break; // not an APPn marker; stop scanning
+    } else {
+      const size = view.getUint16(offset, false);
+      offset += size;
+    }
+  }
+  return null;
+}
+
+async function readFileAsDataURL(file: File, maxWidth = 1200, maxHeight = 900): Promise<string> {
+  // Read as ArrayBuffer first so we can detect EXIF orientation
+  const buffer = await file.arrayBuffer();
+  const orientation = getJpegOrientation(buffer);
+
+  const blob = new Blob([buffer], { type: file.type || "image/jpeg" });
+  const objectUrl = URL.createObjectURL(blob);
+
+  const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+    const _img = new Image();
+    _img.onload = () => resolve(_img);
+    _img.onerror = (e) => reject(e);
+    _img.src = objectUrl;
+  });
+
+  const srcW = img.naturalWidth;
+  const srcH = img.naturalHeight;
+
+  // If EXIF orientation is 5–8, the image needs a 90° rotation (dimensions swap)
+  const rotates90 = orientation != null && orientation >= 5 && orientation <= 8;
+
+  // Compute scale so that the FINAL displayed orientation fits within maxWidth × maxHeight
+  const scale = Math.min(
+    maxWidth / (rotates90 ? srcH : srcW),
+    maxHeight / (rotates90 ? srcW : srcH),
+    1
+  );
+
+  // Destination draw size (before canvas rotation transforms)
+  const dw = Math.round(srcW * scale);
+  const dh = Math.round(srcH * scale);
+
+  // Canvas size depends on whether we rotate 90°
+  const canvas = document.createElement("canvas");
+  const ctx = canvas.getContext("2d");
+  if (!ctx) {
+    URL.revokeObjectURL(objectUrl);
+    throw new Error("Canvas not supported");
+  }
+
+  if (rotates90) {
+    canvas.width = dh;
+    canvas.height = dw;
+  } else {
+    canvas.width = dw;
+    canvas.height = dh;
+  }
+
+  ctx.save();
+  // Apply EXIF orientation transforms
+  switch (orientation) {
+    case 2: // flip X
+      ctx.translate(dw, 0);
+      ctx.scale(-1, 1);
+      break;
+    case 3: // 180°
+      ctx.translate(dw, dh);
+      ctx.rotate(Math.PI);
+      break;
+    case 4: // flip Y
+      ctx.translate(0, dh);
+      ctx.scale(1, -1);
+      break;
+    case 5: // transpose
+      ctx.rotate(0.5 * Math.PI);
+      ctx.scale(1, -1);
+      ctx.translate(0, -dh);
+      break;
+    case 6: // rotate 90° CW
+      ctx.rotate(0.5 * Math.PI);
+      ctx.translate(0, -dh);
+      break;
+    case 7: // transverse
+      ctx.rotate(0.5 * Math.PI);
+      ctx.scale(-1, 1);
+      ctx.translate(-dw, -dh);
+      break;
+    case 8: // rotate 270° CW
+      ctx.rotate(-0.5 * Math.PI);
+      ctx.translate(-dw, 0);
+      break;
+    default:
+      // orientation 1 or unknown: no transform
+      break;
+  }
+
+  // Draw scaled image
+  ctx.drawImage(img, 0, 0, srcW, srcH, 0, 0, dw, dh);
+  ctx.restore();
+
+  URL.revokeObjectURL(objectUrl);
+  // Export JPEG ~85% quality
+  return canvas.toDataURL("image/jpeg", 0.85);
+}
+
+// Convert HEIC/HEIF to JPEG if needed
+async function ensureJpeg(file: File): Promise<File> {
+  const isHeic = /heic|heif/i.test(file.type) || /\.(heic|heif)$/i.test(file.name);
+  if (!isHeic) return file;
+
+  const out = await heic2any({ blob: file, toType: "image/jpeg", quality: 0.85 });
+  const blob = Array.isArray(out) ? (out[0] as Blob) : (out as Blob);
+  return new File([blob], file.name.replace(/\.(heic|heif)$/i, ".jpg"), { type: "image/jpeg" });
+}
+
 function safeLoad(): AppState | null {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
@@ -148,8 +303,8 @@ function safeLoad(): AppState | null {
       station: typeof p?.info?.station === "string" ? p.info.station : "",
       supervisor: typeof p?.info?.supervisor === "string" ? p.info.supervisor : "",
       observer: typeof p?.info?.observer === "string"
-  ? p.info.observer
-  : (localStorage.getItem(LAST_OBSERVER_KEY) || ""),
+        ? p.info.observer
+        : (localStorage.getItem(LAST_OBSERVER_KEY) || ""),
     };
 
     const employees: Employee[] = Array.isArray(p?.employees)
@@ -204,7 +359,19 @@ function safeLoad(): AppState | null {
         }));
     }
 
-    return { info, employees, taskLog, timeLog };
+    let photos: PhotoItem[] = [];
+    if (Array.isArray(p?.photos)) {
+      photos = p.photos
+        .filter((ph: any) => ph && typeof ph.dataUrl === "string")
+        .map((ph: any) => ({
+          id: Number(ph.id ?? Date.now()),
+          dataUrl: String(ph.dataUrl),
+          name: typeof ph.name === "string" ? ph.name : undefined,
+          caption: typeof ph.caption === "string" ? ph.caption : undefined,
+        }));
+    }
+
+    return { info, employees, taskLog, timeLog, photos };
   } catch {
     return null;
   }
@@ -398,6 +565,7 @@ export default function WorkMeasurementApp() {
   const [employees, setEmployees] = useState<Employee[]>(loaded?.employees ?? []);
   const [taskLog, setTaskLog] = useState<TaskEntry[]>(loaded?.taskLog ?? []);
   const [timeLog, setTimeLog] = useState<TimeLogEntry[]>(loaded?.timeLog ?? []);
+  const [photos, setPhotos] = useState<PhotoItem[]>(loaded?.photos ?? []);
 
   const [employeeName, setEmployeeName] = useState("");
   const [note, setNote] = useState("");
@@ -429,8 +597,43 @@ export default function WorkMeasurementApp() {
   
   // Persist
   useEffect(() => {
-    safeSave({ info, employees, taskLog, timeLog });
-  }, [info, employees, taskLog, timeLog]);
+    safeSave({ info, employees, taskLog, timeLog, photos });
+  }, [info, employees, taskLog, timeLog, photos]);
+  // --- Photos: handlers ---
+  async function handlePhotoFiles(files: FileList | null) {
+    if (!files || !files.length) return;
+
+    const remaining = Math.max(0, 5 - photos.length);
+    if (remaining === 0) {
+      alert("You can attach up to 5 photos.");
+      return;
+    }
+
+    const toProcess = Array.from(files).slice(0, remaining);
+    const additions: PhotoItem[] = [];
+
+    for (const f of toProcess) {
+      try {
+        const jpgFile = await ensureJpeg(f);
+        const dataUrl = await readFileAsDataURL(jpgFile, 1200, 900);
+        additions.push({ id: Date.now() + Math.random(), dataUrl, name: jpgFile.name });
+      } catch (e) {
+        console.error("Failed to process image", f.name, e);
+      }
+    }
+
+    if (additions.length) {
+      setPhotos(prev => [...prev, ...additions]);
+    }
+
+    if (files.length > remaining) {
+      alert(`Only the first ${remaining} photo(s) were added. Limit is 5 photos total.`);
+    }
+  }
+
+  function removePhoto(id: number) {
+    setPhotos(prev => prev.filter(p => p.id !== id));
+  }
   useEffect(() => {
   try {
     if (info.observer && info.observer.trim()) {
@@ -1220,6 +1423,8 @@ export default function WorkMeasurementApp() {
         </ul>
       </section>
       
+      {/* PHOTOS SECTION MOVED BELOW TASK LOG */}
+
       <section className="section card">
         <h2>General Info</h2>
 
@@ -1518,6 +1723,50 @@ export default function WorkMeasurementApp() {
         </ul>
       </section>
 
+      {/* PHOTOS SECTION MOVED HERE */}
+      <section className="section card">
+        <h2>Photos <span className="meta">({photos.length}/5)</span></h2>
+        <div style={{ display: "flex", gap: 8, alignItems: "center", marginTop: 8, flexWrap: "wrap" }}>
+          <label className="btn blue" style={{ cursor: "pointer" }}>
+            Upload Photos
+            <input
+              type="file"
+              accept="image/*,.heic,.heif"
+              multiple
+              onChange={(e) => handlePhotoFiles(e.target.files)}
+              style={{ display: "none" }}
+            />
+          </label>
+          <span className="meta">Images are resized and auto-rotated on upload.</span>
+        </div>
+
+        {photos.length > 0 && (
+          <ul className="card-list" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))", display: "grid" }}>
+            {photos.map((p) => (
+              <li key={p.id} className="emp" style={{ padding: 8, display: "grid", gap: 8 }}>
+                <div className="photo-thumb">
+                  <img src={p.dataUrl} alt={p.name || "photo"} />
+                  <button
+                    type="button"
+                    className="photo-remove"
+                    aria-label="Remove photo"
+                    title="Remove photo"
+                    onClick={() => removePhoto(p.id)}
+                  >
+                    ×
+                  </button>
+                </div>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <span className="meta" style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                    {p.name || "photo"}
+                  </span>
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+
       <section className="section card">
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <h2>Time Log</h2>
@@ -1608,6 +1857,7 @@ export default function WorkMeasurementApp() {
 
         <p className="footer-hint">Tip: Export HTML and “Save as PDF” if Safari blocks direct print.</p>
       </section>
+
 
       <HelpModal open={showHelp} onClose={() => setShowHelp(false)} />
       <ReasonModal
