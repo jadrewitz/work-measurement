@@ -493,8 +493,8 @@ export default function WorkMeasurementApp() {
         pausedAccum: 0,
         lastPausedAt: null,
         logs: [],
-        role: "",
-        skill: "",
+        role: "Mechanic",
+        skill: "A&P",
       },
     ]);
     setEmployeeName("");
@@ -1082,25 +1082,31 @@ export default function WorkMeasurementApp() {
                       </div>
                       <select
                         className="btn"
-                        value={roleIsPreset ? emp.role : "Other…"}
+                        value={roleIsPreset ? (emp.role as string) : "__OTHER__"}
                         onChange={(e) => {
                           const v = e.target.value;
-                          if (v === "Other…") setRole("");
-                          else setRole(v);
+                          if (v === "__OTHER__") {
+                            setRole("");
+                          } else {
+                            setRole(v);
+                          }
                         }}
                       >
-                        {ROLE_OPTIONS.map((r) => (
+                        {ROLE_OPTIONS.filter(r => r !== "Other…").map((r) => (
                           <option key={r} value={r}>
                             {r}
                           </option>
                         ))}
+                        <option value="__OTHER__">Other…</option>
                       </select>
                       {!roleIsPreset && (
                         <input
+                          className="other-input"
                           style={{ marginTop: 6, width: "100%" }}
                           placeholder="Role (free text)"
                           value={emp.role || ""}
                           onChange={(e) => setRole(e.target.value)}
+                          autoFocus
                         />
                       )}
                     </div>
@@ -1111,25 +1117,31 @@ export default function WorkMeasurementApp() {
                       </div>
                       <select
                         className="btn"
-                        value={skillIsPreset ? emp.skill : "Other…"}
+                        value={skillIsPreset ? (emp.skill as string) : "__OTHER__"}
                         onChange={(e) => {
                           const v = e.target.value;
-                          if (v === "Other…") setSkill("");
-                          else setSkill(v);
+                          if (v === "__OTHER__") {
+                            setSkill("");
+                          } else {
+                            setSkill(v);
+                          }
                         }}
                       >
-                        {SKILL_OPTIONS.map((s) => (
+                        {SKILL_OPTIONS.filter(s => s !== "Other…").map((s) => (
                           <option key={s} value={s}>
                             {s}
                           </option>
                         ))}
+                        <option value="__OTHER__">Other…</option>
                       </select>
                       {!skillIsPreset && (
                         <input
+                          className="other-input"
                           style={{ marginTop: 6, width: "100%" }}
                           placeholder="Skill (free text)"
                           value={emp.skill || ""}
                           onChange={(e) => setSkill(e.target.value)}
+                          autoFocus
                         />
                       )}
                     </div>
@@ -1295,6 +1307,7 @@ export default function WorkMeasurementApp() {
               <span>Type — Other</span>
               <input
                 type="text"
+                className="other-input"
                 value={typeOther}
                 placeholder="Describe type (e.g., AOG, Special Project)"
                 onChange={(e) => {
@@ -1334,6 +1347,7 @@ export default function WorkMeasurementApp() {
               <span>Work Type — Other</span>
               <input
                 type="text"
+                className="other-input"
                 value={workTypeOther}
                 placeholder="Describe work type"
                 onChange={(e) => {

@@ -93,9 +93,17 @@ input:focus{ border-color:#4166ff; box-shadow:0 0 0 3px #4166ff33 }
 select, select.btn{
   background:#0b1228; color:var(--ink);
   border:1px solid #26345a; border-radius:var(--radius-sm);
-  padding:10px 12px; height:40px; font-size:14px;
+  /* make sure the selected text is not flush with the left edge */
+  padding:10px 12px;            /* base padding */
+  padding-left:16px !important; /* extra left space */
+  -webkit-padding-start:16px;   /* Safari/iOS */
+  -moz-padding-start:16px;      /* Firefox */
+  text-indent:0;                /* prevent negative indent tricks */
+  background-clip:padding-box;  /* keep background inside padding */
+  height:40px; font-size:14px;
   outline:none; appearance:none; -webkit-appearance:none;
 }
+select option{ color:var(--ink); background:#0b1228; }
 select:focus, select.btn:focus{
   border-color:#4166ff; box-shadow:0 0 0 3px #4166ff33;
 }
@@ -217,3 +225,15 @@ td.cap{ text-transform:capitalize }
   .app-header{ flex-wrap:wrap; }
   .toolbar{ width:100%; margin-left:0; margin-top:8px; justify-content:flex-start; flex-wrap:wrap; }
 }
+
+/* "Other…" inline text fields styling */
+.other-input{
+  background:#0b1228;          /* match dark input background */
+  color:var(--ink);            /* bright text for contrast */
+  border:1px solid #26345a;
+  border-radius:var(--radius-sm);
+  padding:10px 12px;
+  outline:none;
+}
+.other-input::placeholder{ color:#7284a7 }
+.other-input:focus{ border-color:#4166ff; box-shadow:0 0 0 3px #4166ff33 }
