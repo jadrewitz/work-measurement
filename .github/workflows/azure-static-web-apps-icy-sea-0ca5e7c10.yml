@@ -2,12 +2,10 @@ name: Azure Static Web Apps CI/CD
 
 on:
   push:
-    branches:
-      - main
+    branches: [main]
   pull_request:
     types: [opened, synchronize, reopened, closed]
-    branches:
-      - main
+    branches: [main]
 
 jobs:
   build_and_deploy_job:
@@ -36,10 +34,11 @@ jobs:
         with:
           azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN_ICY_SEA_0CA5E7C10 }}
           repo_token: ${{ secrets.GITHUB_TOKEN }}
-          action: "upload"
-          app_location: "dist"     # upload the prebuilt app from dist/
-          api_location: ""         # no API
-          skip_app_build: true     # don't build again on Azure
+          action: upload
+          app_location: "/"         # root of your app
+          api_location: ""          # no API
+          output_location: "dist"   # upload ./dist
+          skip_app_build: true      # don't build again on Azure
 
   close_pull_request_job:
     if: github.event_name == 'pull_request' && github.event.action == 'closed'
@@ -51,4 +50,4 @@ jobs:
         uses: Azure/static-web-apps-deploy@v1
         with:
           azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN_ICY_SEA_0CA5E7C10 }}
-          action: "close"
+          action: close
