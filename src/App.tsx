@@ -1060,6 +1060,15 @@ export default function WorkMeasurementApp() {
         <ul className="card-list">
           {employees.map((emp) => {
             const { active, idle, total } = liveTimes(emp);
+            const hasAnyTime = active > 0 || idle > 0 || emp.logs.length > 0;
+            const statusClass =
+              emp.status === "active"
+                ? "emp-active"
+                : emp.status === "paused"
+                ? "emp-paused"
+                : hasAnyTime
+                ? "emp-stopped"
+                : "emp-neutral";
 
             const setRole = (v: string) =>
               setEmployees((prev) => prev.map((e) => (e.id === emp.id ? { ...e, role: v } : e)));
@@ -1070,7 +1079,7 @@ export default function WorkMeasurementApp() {
             const skillIsPreset = emp.skill && SKILL_OPTIONS.includes(emp.skill as any);
 
             return (
-              <li key={emp.id} className="emp">
+              <li key={emp.id} className={`emp ${statusClass}`}>
                 <div>
                   <div style={{ fontWeight: 700, fontSize: 16 }}>{emp.name}</div>
 

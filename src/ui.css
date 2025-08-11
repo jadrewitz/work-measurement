@@ -145,11 +145,21 @@ select:focus, select.btn:focus{
 
 /* Employee list */
 .card-list{ display:grid; gap:12px; margin-top:12px; padding:0; list-style:none; }
+
 .emp{
   display:flex; justify-content:space-between; align-items:center; gap:14px;
   padding:14px; border:1px solid var(--line); border-radius:12px;
   background:linear-gradient(180deg,#0f1735,#0f1731); color:#ffffff;
 }
+
+/* Status borders on employee cards */
+.emp.emp-active  { border: 2px solid var(--success); }
+.emp.emp-paused  { border: 2px solid var(--warn); }
+.emp.emp-stopped { border: 2px solid var(--danger); }
+.emp.emp-neutral { border: 1px solid var(--line); } /* default */
+
+/* Smoothen border color change */
+.emp { transition: border-color .2s ease, border-width .2s ease; }
 
 .emp .meta{ margin:6px 0 0; font-size:12px; color:#ffffff; }
 
