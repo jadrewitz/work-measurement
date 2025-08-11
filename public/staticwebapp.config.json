@@ -1,0 +1,13 @@
+{
+  "mimeTypes": {
+    ".js": "text/javascript",
+    ".mjs": "text/javascript",
+    ".css": "text/css",
+    ".map": "application/json",
+    ".json": "application/json"
+  },
+  "routes": [
+    { "route": "/assets/*", "allowedRoles": ["anonymous"] },
+    { "route": "/*", "rewrite": "/index.html" }
+  ]
+}
