@@ -375,9 +375,10 @@ function renderHTML(
 <meta charset="utf-8"/>
 <title>Work Measurement Analysis — Report</title>
 <meta name="viewport" content="width=device-width, initial-scale=1"/>
+<meta name="color-scheme" content="light"/>
 <style>${baseStyles()}</style>
 </head>
-<body>
+<body class="report-container">
   <div class="wrap">
     <h1>Work Measurement Analysis — Report</h1>
     <div class="meta">Generated ${genAt.toLocaleString()}</div>
