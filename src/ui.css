@@ -295,3 +295,46 @@ td.cap{ text-transform:capitalize }
   .app-header{ flex-wrap:wrap; }
   .toolbar{ width:100%; margin-left:0; margin-top:8px; justify-content:flex-start; flex-wrap:wrap; }
 }
+/* ---------- Force LIGHT theme for reports (screen + print) ---------- */
+/* Add class="report-container" on the report root/wrapper */
+.report-container{
+  background:#ffffff !important;
+  color:#000000 !important;
+}
+
+/* Make all text inside the report render as dark on light */
+.report-container *{
+  color:#000000 !important;
+  background:transparent !important;
+}
+
+/* If device is in dark mode, keep the report light */
+@media (prefers-color-scheme: dark){
+  .report-container{
+    background:#ffffff !important;
+    color:#000000 !important;
+  }
+  .report-container *{
+    color:#000000 !important;
+    background:transparent !important;
+  }
+}
+
+/* Print: always white background with dark text */
+@media print {
+  .report-container{
+    background:#ffffff !important;
+    color:#000000 !important;
+  }
+  .report-container *{
+    color:#000000 !important;
+    background:#ffffff !important; /* avoid dark fills in print */
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+}
+
+@media print {
+  .card, .section { break-inside: avoid; page-break-inside: avoid; }
+  img { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+}
