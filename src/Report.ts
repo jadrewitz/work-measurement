@@ -39,6 +39,7 @@ export interface ReportPhoto {
   url?: string;       // alternate field for image source (optional)
   preview?: string;   // alternate field for image source (optional)
   name?: string;
+  caption?: string;
   w?: number;
   h?: number;
   type?: string;
@@ -91,6 +92,7 @@ function baseStyles() {
   .grid.cols-2{grid-template-columns: 1fr 1fr}
   .mono{font-family:ui-monospace,Menlo,Consolas,monospace}
   table{width:100%;border-collapse:collapse}
+  .table-wrap{overflow:auto}
   th,td{border-bottom:1px solid #202b54;padding:8px;text-align:left;vertical-align:top}
   th{font-size:12px;color:#cfe0ff}
   .kpis{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
@@ -100,9 +102,9 @@ function baseStyles() {
   .defs{font-size:12px;color:var(--muted)}
   .defs dt{color:#cfe0ff;font-weight:600;margin-top:8px}
   .defs dd{margin:2px 0 6px 0}
-  .photos{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px}
+  .photos{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px;align-items:start}
   .photo-card{border:1px solid var(--line);border-radius:10px;padding:8px;background:linear-gradient(180deg,#0f1736,#0e142d)}
-  .photo-img{width:100%;height:220px;object-fit:contain;display:block;background:#0b1228;border-radius:6px;image-orientation:from-image}
+  .photo-img{width:100%;height:220px;object-fit:contain;display:block;background:#0b1228;border-radius:6px;image-orientation:from-image;page-break-inside:avoid}
   .photo-caption{margin-top:6px;font-size:12px;color:var(--muted)}
   @media print{
     body{background:white;color:black}
@@ -113,6 +115,16 @@ function baseStyles() {
     .photo-card{border-color:#ccc}
   }
   `;
+}
+// Helper to pick the first available image source from ReportPhoto
+function pickPhotoSrc(p: ReportPhoto): string {
+  return (
+    (p.data && typeof p.data === "string" && p.data) ||
+    (p.src && typeof p.src === "string" && p.src) ||
+    (p.url && typeof p.url === "string" && p.url) ||
+    ((p as any).preview && typeof (p as any).preview === "string" && (p as any).preview) ||
+    ""
+  );
 }
 
 function escapeHTML(s: string) {
@@ -204,7 +216,7 @@ async function normalizePhotosToDataURLs(photos?: ReportPhoto[]): Promise<Report
         ((p as any).preview && typeof (p as any).preview === "string" && (p as any).preview) ||
         "";
       if (!src) return { ...p, data: "" };
-      if (src.startsWith("data:")) return { ...p, data: src };
+      if (src.startsWith("data:")) return { ...p, data: src, src };
       if (src.startsWith("blob:")) {
         const res = await fetch(src);
         const blob = await res.blob();
@@ -214,7 +226,7 @@ async function normalizePhotosToDataURLs(photos?: ReportPhoto[]): Promise<Report
           fr.onerror = () => reject(fr.error);
           fr.readAsDataURL(blob);
         });
-        return { ...p, data: dataUrl };
+        return { ...p, data: dataUrl, src: dataUrl };
       }
       // If it's an http(s) URL, try to fetch and inline it as data URL.
       if (/^https?:\/\//i.test(src)) {
@@ -226,10 +238,10 @@ async function normalizePhotosToDataURLs(photos?: ReportPhoto[]): Promise<Report
           fr.onerror = () => reject(fr.error);
           fr.readAsDataURL(blob);
         });
-        return { ...p, data: dataUrl };
+        return { ...p, data: dataUrl, src: dataUrl };
       }
       // If none of the above, just use the resolved src as data (so renderHTML always gets something in .data)
-      return { ...p, data: src };
+      return { ...p, data: src, src };
     } catch {
       // On error, fallback to the best src found
       const src =
@@ -238,7 +250,7 @@ async function normalizePhotosToDataURLs(photos?: ReportPhoto[]): Promise<Report
         (p.url && typeof p.url === "string" && p.url) ||
         ((p as any).preview && typeof (p as any).preview === "string" && (p as any).preview) ||
         "";
-      return { ...p, data: src };
+      return { ...p, data: src, src };
     }
   };
   return Promise.all(photos.map(convertOne));
@@ -361,13 +373,13 @@ function renderHTML(
 <html>
 <head>
 <meta charset="utf-8"/>
-<title>Work Measurement Report</title>
+<title>Work Measurement Analysis — Report</title>
 <meta name="viewport" content="width=device-width, initial-scale=1"/>
 <style>${baseStyles()}</style>
 </head>
 <body>
   <div class="wrap">
-    <h1>Work Measurement Study — Report</h1>
+    <h1>Work Measurement Analysis — Report</h1>
     <div class="meta">Generated ${genAt.toLocaleString()}</div>
 
     <div class="card grid cols-2" style="margin-top:12px">
@@ -431,16 +443,22 @@ function renderHTML(
       </div>
     </div>
 
-    ${photos && photos.length ? `
+   ${photos && photos.length ? `
     <div class="card">
       <h2>Photos</h2>
       <div class="photos">
-        ${photos.map((p, idx) => `
-          <div class="photo-card">
-            <img class="photo-img" src="${p.data}" alt="${escapeHTML(p.name || `Photo ${idx+1}`)}" loading="eager" referrerpolicy="no-referrer"/>
-            <div class="photo-caption">${escapeHTML(p.name || `Photo ${idx+1}`)}</div>
-          </div>
-        `).join("")}
+        ${photos.map((p, idx) => {
+          const s = pickPhotoSrc(p);
+          if (!s) return ""; // skip if no usable source
+          const caption = escapeHTML(p.caption || p.name || `Photo ${idx + 1}`);
+          const head = s.slice(0, 32); // helps debugging src kind
+          return [
+            '<div class="photo-card" data-src-head="', head, '">',
+              '<img class="photo-img" src="', s, '" alt="', caption, '" loading="eager"/>',
+              '<div class="photo-caption">', caption, '</div>',
+            '</div>'
+          ].join("");
+        }).join("")}
       </div>
     </div>
   ` : ""}
