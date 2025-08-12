@@ -1,8 +1,38 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import * as XLSX from "xlsx";
-import { printReportHTML, exportReportHTML } from "./Report";
+import { printReportHTML, exportReportHTML, exportReportPDF } from "./Report";
 import "./ui.css";
 import heic2any from "heic2any";
+
+async function toDataUrlIfNeeded(src: string): Promise<string> {
+  if (!src) return "";
+  if (src.startsWith("data:")) return src;
+  try {
+    const res = await fetch(src);
+    const blob = await res.blob();
+    const fr = new FileReader();
+    return await new Promise<string>((resolve, reject) => {
+      fr.onload = () => resolve(String(fr.result));
+      fr.onerror = () => reject(fr.error);
+      fr.readAsDataURL(blob);
+    });
+  } catch {
+    return "";
+  }
+}
+
+async function buildReportPhotos(raw: any[]): Promise<{data: string; name?: string}[]> {
+  const mapped = raw.map(p => ({
+    data: p.data || p.url || p.preview || p.src || "",
+    name: p.name || ""
+  }));
+  const out: {data: string; name?: string}[] = [];
+  for (const p of mapped) {
+    const data = await toDataUrlIfNeeded(p.data);
+    if (data) out.push({ data, name: p.name });
+  }
+  return out;
+}
 
 /* ---------- Types ---------- */
 type EmpStatus = "idle" | "active" | "paused";
@@ -1189,7 +1219,7 @@ export default function WorkMeasurementApp() {
   };
 
   const printReport = () => {
-    printReportHTML(info, employees, timeLog, taskLog, liveTimes, msToTime, fmtStamp);
+    printReportHTML(info, employees, timeLog, taskLog, liveTimes, msToTime, fmtStamp, photos);
   };
 
   /* ---------- UI ---------- */
@@ -1224,10 +1254,27 @@ export default function WorkMeasurementApp() {
               <button
                 className="btn ghost"
                 onClick={() =>
-                  exportReportHTML(info, employees, timeLog, taskLog, liveTimes, msToTime, fmtStamp)
+                  exportReportHTML(info, employees, timeLog, taskLog, liveTimes, msToTime, fmtStamp, photos)
                 }
               >
                 HTML Report
+              </button>
+              <button
+                className="btn ghost"
+                onClick={() =>
+                  exportReportPDF(
+                    info,
+                    employees,
+                    timeLog,
+                    taskLog,
+                    liveTimes,
+                    msToTime,
+                    fmtStamp,
+                    photos
+                  )
+                }
+              >
+                PDF (offline)
               </button>
               <button className="btn ghost" onClick={printReport}>
                 Print Report

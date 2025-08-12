@@ -32,6 +32,18 @@ export interface TaskEntry {
   text: string;
 }
 
+export interface ReportPhoto {
+  id?: number | string;
+  data?: string;      // data URL (base64) or object URL (preferred for rendering)
+  src?: string;       // alternate field for image source (optional)
+  url?: string;       // alternate field for image source (optional)
+  preview?: string;   // alternate field for image source (optional)
+  name?: string;
+  w?: number;
+  h?: number;
+  type?: string;
+}
+
 export interface Info {
   date: string;
   endDate: string;
@@ -88,11 +100,17 @@ function baseStyles() {
   .defs{font-size:12px;color:var(--muted)}
   .defs dt{color:#cfe0ff;font-weight:600;margin-top:8px}
   .defs dd{margin:2px 0 6px 0}
+  .photos{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px}
+  .photo-card{border:1px solid var(--line);border-radius:10px;padding:8px;background:linear-gradient(180deg,#0f1736,#0e142d)}
+  .photo-img{width:100%;height:220px;object-fit:contain;display:block;background:#0b1228;border-radius:6px;image-orientation:from-image}
+  .photo-caption{margin-top:6px;font-size:12px;color:var(--muted)}
   @media print{
     body{background:white;color:black}
     .card{border-color:#ccc}
     .kpi{border-color:#ccc}
     .meta{color:#444}
+    .photo-img{width:3in;height:2in;object-fit:contain;image-orientation:from-image}
+    .photo-card{border-color:#ccc}
   }
   `;
 }
@@ -173,6 +191,59 @@ function calcKPIs(
   return { totalActive, totalIdle, totalAll, actualClockMs, utilization, crewHours, idleRatio, daily };
 }
 
+// Guarantee all ReportPhoto images are embeddable as data URLs (for printing/offline in Safari/Chrome)
+async function normalizePhotosToDataURLs(photos?: ReportPhoto[]): Promise<ReportPhoto[]> {
+  if (!photos || !photos.length) return [];
+  const convertOne = async (p: ReportPhoto): Promise<ReportPhoto> => {
+    try {
+      // Accept multiple possible fields for the source string
+      const src =
+        (p.data && typeof p.data === "string" && p.data) ||
+        (p.src && typeof p.src === "string" && p.src) ||
+        (p.url && typeof p.url === "string" && p.url) ||
+        ((p as any).preview && typeof (p as any).preview === "string" && (p as any).preview) ||
+        "";
+      if (!src) return { ...p, data: "" };
+      if (src.startsWith("data:")) return { ...p, data: src };
+      if (src.startsWith("blob:")) {
+        const res = await fetch(src);
+        const blob = await res.blob();
+        const dataUrl: string = await new Promise((resolve, reject) => {
+          const fr = new FileReader();
+          fr.onload = () => resolve(String(fr.result));
+          fr.onerror = () => reject(fr.error);
+          fr.readAsDataURL(blob);
+        });
+        return { ...p, data: dataUrl };
+      }
+      // If it's an http(s) URL, try to fetch and inline it as data URL.
+      if (/^https?:\/\//i.test(src)) {
+        const res = await fetch(src, { mode: "cors" });
+        const blob = await res.blob();
+        const dataUrl: string = await new Promise((resolve, reject) => {
+          const fr = new FileReader();
+          fr.onload = () => resolve(String(fr.result));
+          fr.onerror = () => reject(fr.error);
+          fr.readAsDataURL(blob);
+        });
+        return { ...p, data: dataUrl };
+      }
+      // If none of the above, just use the resolved src as data (so renderHTML always gets something in .data)
+      return { ...p, data: src };
+    } catch {
+      // On error, fallback to the best src found
+      const src =
+        (p.data && typeof p.data === "string" && p.data) ||
+        (p.src && typeof p.src === "string" && p.src) ||
+        (p.url && typeof p.url === "string" && p.url) ||
+        ((p as any).preview && typeof (p as any).preview === "string" && (p as any).preview) ||
+        "";
+      return { ...p, data: src };
+    }
+  };
+  return Promise.all(photos.map(convertOne));
+}
+
 /* ------------------------------ Render ------------------------------ */
 function renderHTML(
   info: Info,
@@ -182,6 +253,7 @@ function renderHTML(
   liveTimes: LiveTimesFn,
   msToTime: MsToTimeFn,
   fmtStamp: FmtStampFn,
+  photos?: ReportPhoto[],
 ) {
   _use(msToTime);
   const genAt = new Date();
@@ -359,6 +431,20 @@ function renderHTML(
       </div>
     </div>
 
+    ${photos && photos.length ? `
+    <div class="card">
+      <h2>Photos</h2>
+      <div class="photos">
+        ${photos.map((p, idx) => `
+          <div class="photo-card">
+            <img class="photo-img" src="${p.data}" alt="${escapeHTML(p.name || `Photo ${idx+1}`)}" loading="eager" referrerpolicy="no-referrer"/>
+            <div class="photo-caption">${escapeHTML(p.name || `Photo ${idx+1}`)}</div>
+          </div>
+        `).join("")}
+      </div>
+    </div>
+  ` : ""}
+
     ${Object.keys(daily).length ? `
       <div class="card">
         <h2>Daily Breakdown</h2>
@@ -391,19 +477,56 @@ export function printReportHTML(
   liveTimes: LiveTimesFn,
   msToTime: MsToTimeFn,
   fmtStamp: FmtStampFn,
+  photos?: ReportPhoto[],
 ) {
-  const html = renderHTML(info, employees, timeLog, taskLog, liveTimes, msToTime, fmtStamp);
-  const win = window.open("", "_blank");
-  if (!win) return;
-  win.document.open();
-  win.document.write(html);
-  win.document.close();
-  setTimeout(() => {
-    try {
-      win.focus();
-      win.print();
-    } catch {}
-  }, 200);
+  (async () => {
+    const normalizedPhotos = await normalizePhotosToDataURLs(photos);
+    const html = renderHTML(info, employees, timeLog, taskLog, liveTimes, msToTime, fmtStamp, normalizedPhotos);
+    const win = window.open("", "_blank");
+    if (!win) return;
+    win.document.open();
+    win.document.write(html);
+    win.document.close();
+
+    // Wait for the new window to finish rendering AND all images to load
+    const waitForImages = (w: Window) =>
+      new Promise<void>((resolve) => {
+        const imgs = Array.from((w.document as Document).images || []);
+        if (!imgs.length) return resolve();
+
+        let remaining = imgs.length;
+        const done = () => {
+          if (--remaining <= 0) resolve();
+        };
+
+        imgs.forEach((img) => {
+          const el = img as HTMLImageElement;
+          if (el.complete && el.naturalWidth > 0) {
+            done();
+          } else {
+            el.addEventListener("load", done, { once: true });
+            el.addEventListener("error", done, { once: true });
+          }
+        });
+
+        // Safety timeout in case a load event never fires
+        setTimeout(resolve, 4000);
+      });
+
+    const onLoad = async () => {
+      try {
+        await waitForImages(win);
+        win.focus();
+        win.print();
+      } catch {}
+    };
+
+    if (win.document.readyState === "complete") {
+      onLoad();
+    } else {
+      win.addEventListener("load", onLoad, { once: true });
+    }
+  })();
 }
 
 export function exportReportHTML(
@@ -414,13 +537,92 @@ export function exportReportHTML(
   liveTimes: LiveTimesFn,
   msToTime: MsToTimeFn,
   fmtStamp: FmtStampFn,
+  photos?: ReportPhoto[],
 ) {
-  const html = renderHTML(info, employees, timeLog, taskLog, liveTimes, msToTime, fmtStamp);
-  const blob = new Blob([html], { type: "text/html;charset=utf-8" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = "work_measurement_report.html";
-  a.click();
-  URL.revokeObjectURL(url);
+  (async () => {
+    const normalizedPhotos = await normalizePhotosToDataURLs(photos);
+    const html = renderHTML(info, employees, timeLog, taskLog, liveTimes, msToTime, fmtStamp, normalizedPhotos);
+    const blob = new Blob([html], { type: "text/html;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "work_measurement_report.html";
+    a.click();
+    URL.revokeObjectURL(url);
+  })();
+}
+
+export function exportReportPDF(
+  info: Info,
+  employees: Employee[],
+  timeLog: TimeLogEntry[],
+  taskLog: TaskEntry[],
+  liveTimes: LiveTimesFn,
+  msToTime: MsToTimeFn,
+  fmtStamp: FmtStampFn,
+  photos?: ReportPhoto[],
+) {
+  // Create a hidden iframe to avoid popup blockers and ensure print works reliably.
+  const iframe = document.createElement("iframe");
+  iframe.style.position = "fixed";
+  iframe.style.right = "0";
+  iframe.style.bottom = "0";
+  iframe.style.width = "0";
+  iframe.style.height = "0";
+  iframe.style.border = "0";
+  iframe.setAttribute("aria-hidden", "true");
+  document.body.appendChild(iframe);
+
+  const doc = iframe.contentDocument || (iframe.contentWindow && iframe.contentWindow.document);
+  if (!doc) {
+    console.error("Could not create print document.");
+    document.body.removeChild(iframe);
+    return;
+  }
+
+  // We must inline any blob/http URLs as data URLs so printing includes images.
+  let normalizedPhotos: ReportPhoto[] = [];
+  let html = "";
+  // Use an IIFE to await without making the outer function async
+  (async () => {
+    normalizedPhotos = await normalizePhotosToDataURLs(photos);
+    html = renderHTML(info, employees, timeLog, taskLog, liveTimes, msToTime, fmtStamp, normalizedPhotos);
+    doc.open();
+    doc.write(html);
+    doc.close();
+
+    const waitForImages = (w: Window) => new Promise<void>((resolve) => {
+      const imgs = Array.from((w.document as Document).images || []);
+      if (!imgs.length) return resolve();
+      let remaining = imgs.length;
+      const done = () => { if (--remaining <= 0) resolve(); };
+      imgs.forEach((img) => {
+        const el = img as HTMLImageElement;
+        if (el.complete && el.naturalWidth > 0) done();
+        else {
+          el.addEventListener("load", done, { once: true });
+          el.addEventListener("error", done, { once: true });
+        }
+      });
+      setTimeout(resolve, 4000);
+    });
+
+    const run = async () => {
+      try {
+        iframe.contentWindow?.focus();
+        await waitForImages(iframe.contentWindow as Window);
+        iframe.contentWindow?.print();
+      } catch (err) {
+        console.error("Print error:", err);
+      } finally {
+        setTimeout(() => { if (iframe.parentNode) iframe.parentNode.removeChild(iframe); }, 2000);
+      }
+    };
+
+    if (doc.readyState === "complete") run();
+    else iframe.addEventListener("load", run, { once: true });
+  })();
+
+  // Return here; the async IIFE handles the rest.
+  return;
 }
