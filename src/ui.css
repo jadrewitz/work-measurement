@@ -338,3 +338,175 @@ td.cap{ text-transform:capitalize }
   .card, .section { break-inside: avoid; page-break-inside: avoid; }
   img { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 }
+
+/* Sticky KPI strip under the header */
+.kpi-strip{
+  position: sticky;
+  top: 96px; /* sits just below the sticky header */
+  z-index: 9;
+}
+
+@media (max-width: 820px){
+  /* Header wraps on small screens, give KPI a bit more offset */
+  .kpi-strip{ top: 140px; }
+}
+
+
+/* ===========================
+   Light theme overrides
+   Triggered by: <html data-theme="light">
+   =========================== */
+html[data-theme="light"]{
+  --bg:#ffffff;
+  --panel:#f6f7fb;
+  --card:#ffffff;
+  --ink:#0b1220;
+  --ink-dim:#334155;
+  --muted:#475569;
+  --line:#d6d9e3;
+  --brand:#2754e6;
+  --success:#1e9e6a;
+  --warn:#b58900;
+  --danger:#c0392b;
+}
+
+/* Base backgrounds */
+html[data-theme="light"] body{
+  background:#ffffff;
+  color:var(--ink);
+}
+
+/* Cards and panels */
+html[data-theme="light"] .card{
+  background:linear-gradient(180deg,#ffffff,#f8fafc 60%,#ffffff);
+  border-color:#e5e7eb;
+}
+html[data-theme="light"] .emp{
+  background:linear-gradient(180deg,#ffffff,#f8fafc);
+  color:var(--ink);
+}
+/* Keep neutral border light, but do not override status colors */
+html[data-theme="light"] .emp.emp-neutral{
+  border-color:#e5e7eb;
+}
+html[data-theme="light"] .table-wrap{
+  background:#ffffff;
+  border-color:#e5e7eb;
+}
+html[data-theme="light"] th{
+  background:#f1f5f9;
+  color:#0b1220;
+  border-bottom:1px solid #e2e8f0;
+}
+html[data-theme="light"] th, 
+html[data-theme="light"] td{
+  color:#0b1220;
+  border-bottom:1px solid #e5e7eb;
+}
+
+/* Header bar */
+html[data-theme="light"] .app-header{
+  background:linear-gradient(180deg,#eef2ff,#e2e8f0);
+  border-color:#e2e8f0;
+}
+
+/* Inputs / selects */
+html[data-theme="light"] input[type="text"],
+html[data-theme="light"] input[type="date"],
+html[data-theme="light"] .other-input,
+html[data-theme="light"] select,
+html[data-theme="light"] select.btn{
+  background:#ffffff;
+  color:#0b1220;
+  border-color:#cbd5e1;
+}
+html[data-theme="light"] input::placeholder,
+html[data-theme="light"] .other-input::placeholder{
+  color:#94a3b8;
+}
+
+/* Buttons */
+html[data-theme="light"] .btn{
+  background:#eef2ff;
+  color:#0b1220;
+  border-color:#c7d2fe;
+}
+html[data-theme="light"] .btn.ghost{
+  background:transparent;
+  color:#0b1220;
+  border-color:#cbd5e1;
+}
+html[data-theme="light"] .btn.red{
+  background:#fee2e2;
+  color:#7f1d1d;
+  border-color:#fecaca;
+}
+html[data-theme="light"] .btn.yellow{
+  background:#fef9c3;
+  color:#713f12;
+  border-color:#fde68a;
+}
+html[data-theme="light"] .btn.green{
+  background:#dcfce7;
+  color:#065f46;
+  border-color:#bbf7d0;
+}
+html[data-theme="light"] .btn.blue{
+  background:#dbeafe;
+  color:#1e3a8a;
+  border-color:#bfdbfe;
+}
+
+/* KPI tiles */
+html[data-theme="light"] .kpi{
+  background:linear-gradient(180deg,#ffffff,#f8fafc);
+  border-color:#e5e7eb;
+}
+html[data-theme="light"] .kpi .label,
+html[data-theme="light"] .kpi .num{
+  color:#0b1220;
+}
+
+/* Photos */
+html[data-theme="light"] .photo-thumb{
+  background:#f8fafc;
+  border-color:#e5e7eb;
+}
+
+/* Help modal */
+html[data-theme="light"] .modal{
+  background:linear-gradient(180deg,#ffffff,#f8fafc);
+  border-color:#e5e7eb;
+}
+html[data-theme="light"] .modal header h3,
+html[data-theme="light"] .modal .body p{
+  color:#0b1220;
+}
+
+/* Light theme readability fixes */
+html[data-theme="light"] .section h2,
+html[data-theme="light"] .section h3{
+  color:#0b1220;
+}
+
+/* Labels & switch text in light mode */
+html[data-theme="light"] label.stack{ color:#0b1220; }
+html[data-theme="light"] .switch{ color:#0b1220; }
+
+/* The big KPI counters use inline styles; force dark text in light mode */
+html[data-theme="light"] .section [style*="ui-monospace"],
+html[data-theme="light"] .section [style*="monospace"],
+html[data-theme="light"] .section [style*="font-family: ui-monospace"],
+html[data-theme="light"] .section [style*="font-weight: 800"]{
+  color:#0b1220 !important;
+}
+
+/* Meta text in light mode should be subdued, not white */
+html[data-theme="light"] .emp .meta{
+  color:#475569;
+}
+
+/* Re-assert status borders for safety */
+html[data-theme="light"] .emp.emp-active  { border-color: var(--success); }
+html[data-theme="light"] .emp.emp-paused  { border-color: var(--warn); }
+html[data-theme="light"] .emp.emp-stopped { border-color: var(--danger); }

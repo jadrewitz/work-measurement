@@ -95,7 +95,18 @@ const SKILL_OPTIONS = ["A&P", "Structures", "Avionics", "QA", "NDT", "Non-Certif
 
 /* ---------- Helpers ---------- */
 const STORAGE_KEY = "work-measurement:v1";
+
 const LAST_OBSERVER_KEY = "work-measurement:last-observer";
+
+type ThemeMode = "light" | "dark";
+const THEME_KEY = "work-measurement:theme";
+
+function getSystemTheme(): ThemeMode {
+  if (typeof window !== "undefined" && window.matchMedia) {
+    return window.matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark";
+  }
+  return "dark";
+}
 
 const PAUSE_REASONS = [
   "Waiting on parts",
@@ -571,6 +582,25 @@ export default function WorkMeasurementApp() {
   const [taskLog, setTaskLog] = useState<TaskEntry[]>(loaded?.taskLog ?? []);
   const [timeLog, setTimeLog] = useState<TimeLogEntry[]>(loaded?.timeLog ?? []);
   const [photos, setPhotos] = useState<PhotoItem[]>(loaded?.photos ?? []);
+
+  // --- Theme (light/dark) ---
+  const [theme, setTheme] = useState<ThemeMode>(() => {
+    try {
+      const saved = localStorage.getItem(THEME_KEY) as ThemeMode | null;
+      if (saved === "light" || saved === "dark") return saved;
+    } catch {}
+    return getSystemTheme();
+  });
+
+  useEffect(() => {
+    // apply to <html data-theme="...">
+    try {
+      document.documentElement.dataset.theme = theme;
+      localStorage.setItem(THEME_KEY, theme);
+    } catch {}
+  }, [theme]);
+
+  const toggleTheme = () => setTheme((t) => (t === "light" ? "dark" : "light"));
   // Memoized normalized photos for report export
   const reportPhotos = React.useMemo(
     () =>
@@ -1318,6 +1348,9 @@ export default function WorkMeasurementApp() {
               </button>
             </div>
           </div>
+          <button className="btn ghost" onClick={toggleTheme} title="Toggle light/dark">
+            {theme === "light" ? "🌙 Dark" : "☀️ Light"}
+          </button>
           <button className="btn red" onClick={clearSaved}>
             Clear Saved Data
           </button>
@@ -1326,6 +1359,66 @@ export default function WorkMeasurementApp() {
           </button>
         </div>
       </header>
+
+      {/* --- KPI strip (sticky) --- */}
+      <section className="section card kpi-strip">
+        <h2>KPI</h2>
+
+        {/* Big counters */}
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12, margin: "8px 0 12px" }}>
+          <div
+            style={{
+              border: "1px solid #aab2c833",
+              borderRadius: 12,
+              padding: "10px 14px",
+              display: "grid",
+              gap: 6,
+              justifyItems: "center",
+            }}
+          >
+            <div style={{ fontWeight: 800 }}>ACTUAL TIME</div>
+            <div style={{ fontFamily: "ui-monospace, Menlo, Consolas, monospace", fontSize: 36, fontWeight: 800 }}>
+              {msToHMS(actualClockMs)}
+            </div>
+          </div>
+          <div
+            style={{
+              border: "1px solid #aab2c833",
+              borderRadius: 12,
+              padding: "10px 14px",
+              display: "grid",
+              gap: 6,
+              justifyItems: "center",
+            }}
+          >
+            <div style={{ fontWeight: 800 }}>TOUCH LABOR</div>
+            <div style={{ fontFamily: "ui-monospace, Menlo, Consolas, monospace", fontSize: 36, fontWeight: 800 }}>
+              {msToHMS(totalActive)}
+            </div>
+          </div>
+          <div
+            style={{
+              border: "1px solid #aab2c833",
+              borderRadius: 12,
+              padding: "10px 14px",
+              display: "grid",
+              gap: 6,
+              justifyItems: "center",
+            }}
+          >
+            <div style={{ fontWeight: 800 }}>IDLE TIME</div>
+            <div style={{ fontFamily: "ui-monospace, Menlo, Consolas, monospace", fontSize: 36, fontWeight: 800 }}>
+              {msToHMS(totalIdle)}
+            </div>
+          </div>
+        </div>
+
+        {/* Visuals */}
+        <div style={{ display: "grid", gap: 12, gridTemplateColumns: "1fr 1fr", marginTop: 8 }}>
+          <ProgressBar value={utilization * 100} />
+          <StackedBar touchMs={totalActive} idleMs={totalIdle} />
+        </div>
+      </section>
 
 <section className="section">
         <h2>Employees <span className="meta">(add each employee involved with the task)</span></h2>
@@ -1512,90 +1605,57 @@ export default function WorkMeasurementApp() {
       <section className="section card">
         <h2>General Info</h2>
 
-        {/* Big counters */}
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12, margin: "8px 0 12px" }}>
-          <div
-            style={{
-              border: "1px solid #aab2c833",
-              borderRadius: 12,
-              padding: "10px 14px",
-              display: "grid",
-              gap: 6,
-              justifyItems: "center",
-            }}
-          >
-            <div style={{ fontWeight: 800 }}>ACTUAL TIME</div>
-            <div style={{ fontFamily: "ui-monospace, Menlo, Consolas, monospace", fontSize: 36, fontWeight: 800 }}>
-              {msToHMS(actualClockMs)}
-            </div>
-          </div>
-          <div
-            style={{
-              border: "1px solid #aab2c833",
-              borderRadius: 12,
-              padding: "10px 14px",
-              display: "grid",
-              gap: 6,
-              justifyItems: "center",
-            }}
-          >
-            <div style={{ fontWeight: 800 }}>TOUCH LABOR</div>
-            <div style={{ fontFamily: "ui-monospace, Menlo, Consolas, monospace", fontSize: 36, fontWeight: 800 }}>
-              {msToHMS(totalActive)}
-            </div>
-          </div>
-          <div
-            style={{
-              border: "1px solid #aab2c833",
-              borderRadius: 12,
-              padding: "10px 14px",
-              display: "grid",
-              gap: 6,
-              justifyItems: "center",
-            }}
-          >
-            <div style={{ fontWeight: 800 }}>IDLE TIME</div>
-            <div style={{ fontFamily: "ui-monospace, Menlo, Consolas, monospace", fontSize: 36, fontWeight: 800 }}>
-              {msToHMS(totalIdle)}
-            </div>
-          </div>
-        </div>
-
-        {/* Visuals */}
-        <div style={{ display: "grid", gap: 12, gridTemplateColumns: "1fr 1fr", marginTop: 8 }}>
-          <ProgressBar value={utilization * 100} />
-          <StackedBar touchMs={totalActive} idleMs={totalIdle} />
-        </div>
-
         {/* Form */}
         <div className="grid-two" style={{ marginTop: 8 }}>
-          <label className="stack">
-            <span>Start Date</span>
-            <input type="date" name="date" value={info.date} onChange={handleInfoChange} />
-          </label>
-          
+          <div className="date-col" style={{ display: "grid", gap: 8 }}>
+            {/* Multi-day toggle ABOVE Start Date */}
+            <label className="switch">
+              <input
+                type="checkbox"
+                name="multiDay"
+                checked={info.multiDay}
+                onChange={handleInfoChange}
+              />
+              <span>Multi-day study</span>
+            </label>
+
+            {/* Start Date */}
+            <label className="stack">
+              <span>Start Date</span>
+              <input
+                type="date"
+                name="date"
+                value={info.date}
+                onChange={handleInfoChange}
+              />
+            </label>
+
+            {/* End Date appears BELOW Start Date when multi-day is on */}
+            {info.multiDay && (
+              <label className="stack">
+                <span>End Date</span>
+                <input
+                  type="date"
+                  name="endDate"
+                  value={info.endDate}
+                  min={info.date}
+                  onChange={handleInfoChange}
+                />
+              </label>
+            )}
+          </div>
+
+          {/* Keep Observer in the second column */}
           <label className="stack">
             <span>Observer</span>
             <input
-            type="text"
-            name="observer"
-            value={info.observer || ""}
-            onChange={handleInfoChange}
-            placeholder="e.g., Your name"
+              type="text"
+              name="observer"
+              value={info.observer || ""}
+              onChange={handleInfoChange}
+              placeholder="e.g., Your name"
             />
-            </label>
-
-          <label className="switch">
-            <input type="checkbox" name="multiDay" checked={info.multiDay} onChange={handleInfoChange} />
-            <span>Multi-day study</span>
           </label>
-
-          {info.multiDay && (
-            <label className="stack">
-              <span>End Date</span>
-              <input type="date" name="endDate" value={info.endDate} min={info.date} onChange={handleInfoChange} />
-            </label>
-          )}
 
           <label className="stack">
             <span>Type</span>
