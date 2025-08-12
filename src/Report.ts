@@ -79,40 +79,51 @@ const _use = (..._args: unknown[]) => {};
 
 function baseStyles() {
   return `
-  :root{--ink:#e8eeff;--muted:#aabcdf;--line:#2a3560;--bg:#0b1228;--card:#0f1731}
+  :root{--ink:#111827;--muted:#6b7280;--line:#e5e7eb;--bg:#ffffff;--card:#ffffff}
   *{box-sizing:border-box}
-  body{margin:0;font:14px/1.45 ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial;color:var(--ink);background:var(--bg)}
+  body{margin:0;font:14px/1.5 ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial;color:var(--ink);background:var(--bg)}
   .wrap{max-width:960px;margin:24px auto;padding:16px}
   h1{font-size:22px;margin:0 0 2px}
   h2{font-size:16px;margin:16px 0 8px}
-  h3{font-size:13px;margin:12px 0 6px;color:#cfe0ff}
+  h3{font-size:13px;margin:12px 0 6px;color:#374151}
   .meta{color:var(--muted);font-size:12px}
-  .card{background:linear-gradient(180deg,#0f1731,#0e152f);border:1px solid var(--line);border-radius:12px;padding:12px;margin:10px 0}
+  .card{background:#ffffff;border:1px solid var(--line);border-radius:12px;padding:12px;margin:10px 0}
   .grid{display:grid;gap:10px}
   .grid.cols-2{grid-template-columns: 1fr 1fr}
   .mono{font-family:ui-monospace,Menlo,Consolas,monospace}
   table{width:100%;border-collapse:collapse}
   .table-wrap{overflow:auto}
-  th,td{border-bottom:1px solid #202b54;padding:8px;text-align:left;vertical-align:top}
-  th{font-size:12px;color:#cfe0ff}
+  th,td{border-bottom:1px solid var(--line);padding:8px;text-align:left;vertical-align:top}
+  th{font-size:12px;color:#374151}
   .kpis{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
-  .kpi{border:1px solid #2a3560;border-radius:10px;padding:10px;display:grid;gap:6px;justify-items:center;background:transparent}
-  .kpi .label{font-size:12px;color:#cfe0ff}
+  .kpi{border:1px solid var(--line);border-radius:10px;padding:10px;display:grid;gap:6px;justify-items:center;background:#ffffff}
+  .kpi .label{font-size:12px;color:#374151}
   .kpi .num{font-size:20px;font-weight:800;font-family:ui-monospace,Menlo,Consolas,monospace}
   .defs{font-size:12px;color:var(--muted)}
-  .defs dt{color:#cfe0ff;font-weight:600;margin-top:8px}
+  .defs dt{color:#374151;font-weight:600;margin-top:8px}
   .defs dd{margin:2px 0 6px 0}
   .photos{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px;align-items:start}
-  .photo-card{border:1px solid var(--line);border-radius:10px;padding:8px;background:linear-gradient(180deg,#0f1736,#0e142d)}
-  .photo-img{width:100%;height:220px;object-fit:contain;display:block;background:#0b1228;border-radius:6px;image-orientation:from-image;page-break-inside:avoid}
+  .photo-card{border:1px solid var(--line);border-radius:10px;padding:8px;background:#ffffff}
+  .photo-img{width:100%;height:220px;object-fit:contain;display:block;background:#f3f4f6;border-radius:6px;image-orientation:from-image;page-break-inside:avoid}
   .photo-caption{margin-top:6px;font-size:12px;color:var(--muted)}
+  /* Force light mode even when the device is in dark mode (iPad Safari) */
+  @media (prefers-color-scheme: dark){
+    body{background:#ffffff !important;color:#111827 !important}
+    .card{background:#ffffff !important;border-color:#e5e7eb !important}
+    .kpi{background:#ffffff !important;border-color:#e5e7eb !important}
+    .meta{color:#6b7280 !important}
+    th{color:#374151 !important}
+    .photo-card{background:#ffffff !important;border-color:#e5e7eb !important}
+    .photo-img{background:#f3f4f6 !important}
+  }
   @media print{
-    body{background:white;color:black}
-    .card{border-color:#ccc}
-    .kpi{border-color:#ccc}
-    .meta{color:#444}
+    body{background:white !important;color:black !important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+    .card{background:white !important;border-color:#ccc !important}
+    .kpi{background:white !important;border-color:#ccc !important}
+    .meta{color:#444 !important}
     .photo-img{width:3in;height:2in;object-fit:contain;image-orientation:from-image}
-    .photo-card{border-color:#ccc}
+    .photo-card{background:white !important;border-color:#ccc !important}
+    th,td{border-bottom:1px solid #d1d5db !important}
   }
   `;
 }
