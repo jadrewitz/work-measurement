@@ -4,36 +4,6 @@ import { printReportHTML, exportReportHTML, exportReportPDF } from "./Report";
 import "./ui.css";
 import heic2any from "heic2any";
 
-async function toDataUrlIfNeeded(src: string): Promise<string> {
-  if (!src) return "";
-  if (src.startsWith("data:")) return src;
-  try {
-    const res = await fetch(src);
-    const blob = await res.blob();
-    const fr = new FileReader();
-    return await new Promise<string>((resolve, reject) => {
-      fr.onload = () => resolve(String(fr.result));
-      fr.onerror = () => reject(fr.error);
-      fr.readAsDataURL(blob);
-    });
-  } catch {
-    return "";
-  }
-}
-
-async function buildReportPhotos(raw: any[]): Promise<{data: string; name?: string}[]> {
-  const mapped = raw.map(p => ({
-    data: p.data || p.url || p.preview || p.src || "",
-    name: p.name || ""
-  }));
-  const out: {data: string; name?: string}[] = [];
-  for (const p of mapped) {
-    const data = await toDataUrlIfNeeded(p.data);
-    if (data) out.push({ data, name: p.name });
-  }
-  return out;
-}
-
 /* ---------- Types ---------- */
 type EmpStatus = "idle" | "active" | "paused";
 type TimeEvent = "start" | "pause" | "stop" | "deleted";
@@ -72,6 +42,7 @@ interface PhotoItem {
   dataUrl: string;   // already resized and auto-rotated
   name?: string;
   caption?: string;
+  customName?: string; // user-assigned or generated filename for display/saving
 }
 
 interface AppInfo {
@@ -307,10 +278,14 @@ async function readFileAsDataURL(file: File, maxWidth = 1200, maxHeight = 900): 
 async function ensureJpeg(file: File): Promise<File> {
   const isHeic = /heic|heif/i.test(file.type) || /\.(heic|heif)$/i.test(file.name);
   if (!isHeic) return file;
-
-  const out = await heic2any({ blob: file, toType: "image/jpeg", quality: 0.85 });
-  const blob = Array.isArray(out) ? (out[0] as Blob) : (out as Blob);
-  return new File([blob], file.name.replace(/\.(heic|heif)$/i, ".jpg"), { type: "image/jpeg" });
+  try {
+    const out = await heic2any({ blob: file, toType: "image/jpeg", quality: 0.86 });
+    const blob = Array.isArray(out) ? (out[0] as Blob) : (out as Blob);
+    return new File([blob], file.name.replace(/\.(heic|heif)$/i, ".jpg"), { type: "image/jpeg" });
+  } catch (err) {
+    console.warn("HEIC conversion failed; using original file", err);
+    return file;
+  }
 }
 
 function safeLoad(): AppState | null {
@@ -596,6 +571,39 @@ export default function WorkMeasurementApp() {
   const [taskLog, setTaskLog] = useState<TaskEntry[]>(loaded?.taskLog ?? []);
   const [timeLog, setTimeLog] = useState<TimeLogEntry[]>(loaded?.timeLog ?? []);
   const [photos, setPhotos] = useState<PhotoItem[]>(loaded?.photos ?? []);
+  // Memoized normalized photos for report export
+  const reportPhotos = React.useMemo(
+    () =>
+      photos.map((p) => ({
+        data: p.dataUrl,
+        // Use customName if available, else fallback to generated or original name
+        name: p.customName || p.name || "",
+        caption: p.caption || "",
+      })),
+    [photos]
+  );
+
+  // --- Photo rename UI state ---
+  const [editingPhotoId, setEditingPhotoId] = useState<number | null>(null);
+  const [tempPhotoName, setTempPhotoName] = useState("");
+
+  function beginRenamePhoto(p: PhotoItem) {
+    setEditingPhotoId(p.id);
+    setTempPhotoName(p.customName || p.name || "");
+  }
+  function cancelRenamePhoto() {
+    setEditingPhotoId(null);
+    setTempPhotoName("");
+  }
+  function confirmRenamePhoto() {
+    if (editingPhotoId == null) return;
+    const newName = tempPhotoName.trim();
+    setPhotos(prev =>
+      prev.map(ph => ph.id === editingPhotoId ? { ...ph, customName: newName || ph.customName || ph.name } : ph)
+    );
+    setEditingPhotoId(null);
+    setTempPhotoName("");
+  }
 
   const [employeeName, setEmployeeName] = useState("");
   const [note, setNote] = useState("");
@@ -630,7 +638,9 @@ export default function WorkMeasurementApp() {
     safeSave({ info, employees, taskLog, timeLog, photos });
   }, [info, employees, taskLog, timeLog, photos]);
   // --- Photos: handlers ---
-  async function handlePhotoFiles(files: FileList | null) {
+  // Optionally allow user to provide a mapping of filenames to custom names (future extensibility)
+  // For now, generate sequential names: "Audit_Photo_1.png", etc.
+  async function handlePhotoFiles(files: FileList | null, customNameMap?: Record<string, string>) {
     if (!files || !files.length) return;
 
     const remaining = Math.max(0, 5 - photos.length);
@@ -641,12 +651,30 @@ export default function WorkMeasurementApp() {
 
     const toProcess = Array.from(files).slice(0, remaining);
     const additions: PhotoItem[] = [];
+    // Determine starting index for sequential names
+    let photoSeqStart = photos.length + 1;
 
-    for (const f of toProcess) {
+    for (let i = 0; i < toProcess.length; ++i) {
+      const f = toProcess[i];
       try {
         const jpgFile = await ensureJpeg(f);
-        const dataUrl = await readFileAsDataURL(jpgFile, 1200, 900);
-        additions.push({ id: Date.now() + Math.random(), dataUrl, name: jpgFile.name });
+        const dataUrl = await readFileAsDataURL(jpgFile, 1600, 1200);
+        // Determine custom name: use mapping if provided, else sequential
+        let customName: string | undefined = undefined;
+        if (customNameMap && customNameMap[jpgFile.name]) {
+          customName = customNameMap[jpgFile.name];
+        } else {
+          // Try to preserve extension, default to png if unknown
+          let ext = "";
+          const match = jpgFile.name.match(/\.([a-zA-Z0-9]+)$/);
+          if (match) {
+            ext = "." + match[1].toLowerCase();
+          } else {
+            ext = ".png";
+          }
+          customName = `Audit_Photo_${photoSeqStart + i}${ext}`;
+        }
+        additions.push({ id: Date.now() + Math.random(), dataUrl, name: jpgFile.name, customName });
       } catch (e) {
         console.error("Failed to process image", f.name, e);
       }
@@ -1219,7 +1247,16 @@ export default function WorkMeasurementApp() {
   };
 
   const printReport = () => {
-    printReportHTML(info, employees, timeLog, taskLog, liveTimes, msToTime, fmtStamp, photos);
+    printReportHTML(
+      info,
+      employees,
+      timeLog,
+      taskLog,
+      liveTimes,
+      msToTime,
+      fmtStamp,
+      reportPhotos
+    );
   };
 
   /* ---------- UI ---------- */
@@ -1254,7 +1291,7 @@ export default function WorkMeasurementApp() {
               <button
                 className="btn ghost"
                 onClick={() =>
-                  exportReportHTML(info, employees, timeLog, taskLog, liveTimes, msToTime, fmtStamp, photos)
+                  exportReportHTML(info, employees, timeLog, taskLog, liveTimes, msToTime, fmtStamp, reportPhotos)
                 }
               >
                 HTML Report
@@ -1270,7 +1307,7 @@ export default function WorkMeasurementApp() {
                     liveTimes,
                     msToTime,
                     fmtStamp,
-                    photos
+                    reportPhotos
                   )
                 }
               >
@@ -1778,7 +1815,8 @@ export default function WorkMeasurementApp() {
             Upload Photos
             <input
               type="file"
-              accept="image/*,.heic,.heif"
+              accept="image/*,image/heic,image/heif,.heic,.heif"
+              capture="environment"
               multiple
               onChange={(e) => handlePhotoFiles(e.target.files)}
               style={{ display: "none" }}
@@ -1792,7 +1830,12 @@ export default function WorkMeasurementApp() {
             {photos.map((p) => (
               <li key={p.id} className="emp" style={{ padding: 8, display: "grid", gap: 8 }}>
                 <div className="photo-thumb">
-                  <img src={p.dataUrl} alt={p.name || "photo"} />
+                  <img
+                    src={p.dataUrl}
+                    alt={p.customName || p.name || "photo"}
+                    onDoubleClick={() => beginRenamePhoto(p)}
+                    title="Double‑click to rename"
+                  />
                   <button
                     type="button"
                     className="photo-remove"
@@ -1803,10 +1846,31 @@ export default function WorkMeasurementApp() {
                     ×
                   </button>
                 </div>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <span className="meta" style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                    {p.name || "photo"}
-                  </span>
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  {editingPhotoId === p.id ? (
+                    <input
+                      className="other-input"
+                      style={{ width: "100%" }}
+                      value={tempPhotoName}
+                      onChange={(e) => setTempPhotoName(e.target.value)}
+                      autoFocus
+                      onBlur={confirmRenamePhoto}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") confirmRenamePhoto();
+                        if (e.key === "Escape") cancelRenamePhoto();
+                      }}
+                      placeholder="Set photo name"
+                    />
+                  ) : (
+                    <span
+                      className="meta"
+                      style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", cursor: "text" }}
+                      onClick={() => beginRenamePhoto(p)}
+                      title="Click to rename"
+                    >
+                      {p.customName || p.name || "photo"}
+                    </span>
+                  )}
                 </div>
               </li>
             ))}
