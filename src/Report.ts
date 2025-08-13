@@ -59,6 +59,9 @@ export interface Info {
   station?: string;
   supervisor?: string;
   observer?: string;
+  observationScope?: string; // "Full" | "Partial"
+  estimatedTime?: string;    // user-entered text (e.g., "2h 30m")
+  summary?: string;    // multi-line user-entered summary text
 }
 
 type LiveTimesFn = (e: Employee) => { active: number; idle: number; total: number };
@@ -404,6 +407,8 @@ function renderHTML(
         ${info.station ? `<div><span class="meta">Station/Area:</span> ${escapeHTML(info.station)}</div>` : ""}
         ${info.supervisor ? `<div><span class="meta">Supervisor:</span> ${escapeHTML(info.supervisor)}</div>` : ""}
         ${info.observer ? `<div><span class="meta">Observer:</span> ${escapeHTML(info.observer)}</div>` : ""}
+        ${info.observationScope ? `<div><span class="meta">Observation Scope:</span> ${escapeHTML(info.observationScope)}</div>` : ""}
+        ${info.estimatedTime ? `<div><span class="meta">Estimated Time:</span> ${escapeHTML(info.estimatedTime)}</div>` : ""}
         <div><span class="meta">Location:</span> ${escapeHTML(info.location || "—")}</div>
         <div><span class="meta">Procedure:</span> ${escapeHTML(info.procedure || "—")}</div>
         <div><span class="meta">Work Order:</span> ${escapeHTML(info.workOrder || "—")}</div>
@@ -420,6 +425,13 @@ function renderHTML(
         </div>
       </div>
     </div>
+
+    ${info.summary && info.summary.trim() ? `
+      <div class="card">
+        <h2>Summary</h2>
+        <div style="white-space:pre-wrap">${escapeHTML(info.summary)}</div>
+      </div>
+    ` : ""}
 
     <div class="card">
       <h2>Employee Performance</h2>

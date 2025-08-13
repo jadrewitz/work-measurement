@@ -354,7 +354,48 @@ td.cap{ text-transform:capitalize }
   outline:none;
 }
 .other-input::placeholder{ color:#7284a7 }
+
 .other-input:focus{ border-color:#4166ff; box-shadow:0 0 0 3px #4166ff33 }
+
+/* Summary (multiline) textarea styles */
+.summary-input,
+.summary textarea,
+textarea[name="summary"]{
+  background:#0b1228;
+  color:var(--ink);
+  border:1px solid #26345a;
+  border-radius:var(--radius-sm);
+  padding:10px 12px;
+  outline:none;
+  width:100%;
+  min-height:120px;
+  font:14px/1.5 var(--sans);
+  box-sizing:border-box;
+  resize: vertical;
+}
+.summary-input::placeholder,
+.summary textarea::placeholder{
+  color:#7284a7;
+}
+.summary-input:focus,
+.summary textarea:focus{
+  border-color:#4166ff;
+  box-shadow:0 0 0 3px #4166ff33;
+}
+
+/* Light mode overrides for Summary */
+html[data-theme="light"] .summary-input,
+html[data-theme="light"] .summary textarea,
+html[data-theme="light"] textarea[name="summary"]{
+  background:#ffffff;
+  color:#0b1220;
+  border-color:#cbd5e1;
+}
+html[data-theme="light"] .summary-input::placeholder,
+html[data-theme="light"] .summary textarea::placeholder,
+html[data-theme="light"] textarea[name="summary"]::placeholder{
+  color:#94a3b8;
+}
 
 /* Photos: letterboxed thumbnails */
 .photo-thumb{
@@ -527,6 +568,16 @@ html[data-theme="light"] .other-input::placeholder{
   color:#94a3b8;
 }
 
+/* Global textarea fix in light mode (ensures Summary uses white background) */
+html[data-theme="light"] textarea{
+  background:#ffffff !important;
+  color:#0b1220 !important;
+  border-color:#cbd5e1 !important;
+}
+html[data-theme="light"] textarea::placeholder{
+  color:#94a3b8 !important;
+}
+
 /* Buttons */
 html[data-theme="light"] .btn{
   background:#eef2ff;
@@ -694,3 +745,9 @@ html[data-theme="light"] .card-status .state-stopped{ color: var(--danger); }
 /* Slightly reduce the vertical size of progress visuals inside the strip */
 .kpi-strip .chart-card{ padding:8px; }
 .kpi-strip .chart-legend{ margin-bottom:6px; }
+/* Light-mode safeguard for Summary field */
+html[data-theme="light"] textarea[name="summary"]{
+  background:#ffffff !important;
+  color:#0b1220 !important;
+  border-color:#cbd5e1 !important;
+}

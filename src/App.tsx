@@ -62,6 +62,7 @@ interface AppInfo {
   observer?: string;
   estimatedTime?: string;
   observationScope?: ObsScope;
+  summary?: string;
 }
 
 interface AppState {
@@ -326,6 +327,7 @@ function safeLoad(): AppState | null {
         : (localStorage.getItem(LAST_OBSERVER_KEY) || ""),
       estimatedTime: typeof p?.info?.estimatedTime === "string" ? p.info.estimatedTime : "",
       observationScope: p?.info?.observationScope === "Partial" ? "Partial" : "Full",
+      summary: typeof p?.info?.summary === "string" ? p.info.summary : "",
     };
 
     const employees: Employee[] = Array.isArray(p?.employees)
@@ -460,35 +462,79 @@ function HelpModal({ open, onClose }: { open: boolean; onClose: () => void }) {
           <h3>Help & Tips</h3>
         </header>
         <div className="body">
-          <h4>General Info</h4>
+          <h4>Conducting a Work Measurement Analysis</h4>
           <p>
-            Use <b>Type</b> for priority category and <b>Work Type</b> for the nature of work. Enable <b>Multi-day</b> to add End Date. You can
-            also set an <b>Observer</b> name; we remember your last entry.
+            Your goal is to observe and record the time it takes to perform a task — not to critique technique or
+            evaluate quality. Keep conversation to a minimum so you don’t distract employees. If questions arise,
+            jot them down and address them after the observation.
           </p>
 
-          <h4>Time</h4>
-          <p>
-            <b>Actual Time</b> is wall-clock from first <i>Start</i> to last <i>Stop</i>/<i>Delete</i>; if anyone is still working/paused, it runs
-            until now. <b>Touch</b> sums active work; <b>Idle</b> sums paused time.
-          </p>
+          <h4>Best Practices & Tips</h4>
+          <ul style={{margin:0, paddingLeft: '18px', display:'grid', gap:6}}>
+            <li><b>Stay neutral:</b> avoid influencing pace or method; don’t provide coaching during timing.</li>
+            <li><b>Position smartly:</b> close enough to see, but clear of the work area and traffic lanes.</li>
+            <li><b>Be consistent:</b> use the same timing rules and reason codes so results are comparable.</li>
+            <li><b>Note context:</b> capture unusual conditions (parts/tools delays, weather, interruptions).</li>
+            <li><b>Review entries:</b> verify times, names, and notes before exporting or clearing data.</li>
+          </ul>
 
-          <h4>Employees</h4>
-          <p>Each card has Role and Skill (with “Other…”). Start, Pause, Stop record entries in the Time Log.</p>
+          <h4>Using the App</h4>
+          <p style={{margin:'6px 0 0'}}><b>General Info</b></p>
+          <ul style={{margin:0, paddingLeft:'18px', display:'grid', gap:6}}>
+            <li><b>Observer:</b> your name (remembered for next time). <b>Supervisor</b> is optional.</li>
+            <li><b>Observation Scope:</b> choose <i>Full</i> if the entire task was observed, <i>Partial</i> if only a portion.</li>
+            <li><b>Estimated Time:</b> expected duration (e.g., 03:30). Useful for later comparison.</li>
+            <li><b>Dates:</b> set <i>Start Date</i>. Enable <i>Multi‑day</i> to add an <i>End Date</i>.</li>
+            <li><b>Type / Work Type:</b> pick a preset or choose <i>Other…</i> to enter free text.</li>
+          </ul>
 
-          <h4>Task Log</h4>
-          <p>Add notes. Sort newest/oldest. Notes can be deleted.</p>
+          <p style={{margin:'10px 0 0'}}><b>KPI Card</b></p>
+          <ul style={{margin:0, paddingLeft:'18px', display:'grid', gap:6}}>
+            <li><b>Actual / Touch / Idle</b> live timers at the top.</li>
+            <li><b>Total Employees, Sessions, Combined Time, Utilization, Crew‑hours, Idle Ratio</b> are summarized below.</li>
+          </ul>
 
-          <h4>Time Log</h4>
-          <p>Captures Start/Pause/Stop/Delete with timestamp and optional reason/comment. You can delete single items or all.</p>
+          <p style={{margin:'10px 0 0'}}><b>Employees</b></p>
+          <ul style={{margin:0, paddingLeft:'18px', display:'grid', gap:6}}>
+            <li>Add each person, then use <b>Start</b>, <b>Pause</b> (with reason/comment), and <b>Stop</b>.</li>
+            <li>Card border colors indicate status: <span style={{color:'#35c98e'}}>green</span> (active), <span style={{color:'#ffd166'}}>yellow</span> (paused), <span style={{color:'#ff6b6b'}}>red</span> (stopped).</li>
+            <li><b>Role</b> and <b>Skill</b> have presets; choose <i>Other…</i> to enter custom text.</li>
+          </ul>
 
-          <h4>Exporting</h4>
-          <p>CSV &amp; Excel include KPIs, Daily breakdown, and reasons. Export HTML opens a styled report for PDF.</p>
+          <p style={{margin:'10px 0 0'}}><b>Task Log</b></p>
+          <ul style={{margin:0, paddingLeft:'18px', display:'grid', gap:6}}>
+            <li>Quick notes you add during the study (e.g., observations, interruptions). Sort newest/oldest.</li>
+          </ul>
 
-          <h4>Report Printing</h4>
-          <p>Use Print Report. In Safari, Export HTML → <i>File → Export as PDF</i>.</p>
+          <p style={{margin:'10px 0 0'}}><b>Summary</b></p>
+          <ul style={{margin:0, paddingLeft:'18px', display:'grid', gap:6}}>
+            <li>Multi‑line narrative of findings placed below the Task Log. Included in all exports.</li>
+          </ul>
 
-          <h4>Clearing Data</h4>
-          <p><b>Clear Saved Data</b> wipes everything from this browser only (you’ll confirm first).</p>
+          <p style={{margin:'10px 0 0'}}><b>Photos</b></p>
+          <ul style={{margin:0, paddingLeft:'18px', display:'grid', gap:6}}>
+            <li>Attach up to <b>5</b> photos. Images are auto‑rotated and resized on upload; HEIC is supported.</li>
+            <li>Click the name to rename; use the red ⨉ to remove. Photos appear in HTML/PDF exports.</li>
+          </ul>
+
+          <p style={{margin:'10px 0 0'}}><b>Time Log</b></p>
+          <ul style={{margin:0, paddingLeft:'18px', display:'grid', gap:6}}>
+            <li>Chronological list of <i>Start</i> / <i>Pause</i> / <i>Stop</i> events with optional reasons and comments.</li>
+            <li>Use <b>Delete</b> on a row to remove an entry, or <b>Delete All</b> to clear the entire log.</li>
+          </ul>
+
+          <p style={{margin:'10px 0 0'}}><b>Export</b></p>
+          <ul style={{margin:0, paddingLeft:'18px', display:'grid', gap:6}}>
+            <li><b>CSV (Summary)</b> – one‑row summary for quick sharing.</li>
+            <li><b>Excel (Full)</b> – Summary, Employee Performance, Time Log, and Daily Breakdown sheets.</li>
+            <li><b>HTML / PDF</b> – full report with photos and formatting. In Safari, you can also use <i>Print Report</i> → <i>Save as PDF</i>.</li>
+          </ul>
+
+          <p style={{margin:'10px 0 0'}}><b>Theme & Data</b></p>
+          <ul style={{margin:0, paddingLeft:'18px', display:'grid', gap:6}}>
+            <li>Use the toolbar toggle to switch <b>Light/Dark</b> modes.</li>
+            <li>All data is stored locally in your browser. <b>Clear Saved Data</b> wipes this device only.</li>
+          </ul>
         </div>
         <footer>
           <button className="btn" onClick={onClose}>
@@ -584,6 +630,7 @@ export default function WorkMeasurementApp() {
       observer: localStorage.getItem(LAST_OBSERVER_KEY) || "",
       estimatedTime: "",
       observationScope: "Full",
+      summary: "",
     },
   );
   const [employees, setEmployees] = useState<Employee[]>(loaded?.employees ?? []);
@@ -949,6 +996,7 @@ export default function WorkMeasurementApp() {
       supervisor: "",
       estimatedTime: "",
       observer: localStorage.getItem(LAST_OBSERVER_KEY) || "",
+      summary: "",
     });
     setEmployees([]);
     setTaskLog([]);
@@ -1068,6 +1116,7 @@ export default function WorkMeasurementApp() {
       "Station/Area",
       "Supervisor",
       "Observer",
+      "Estimated Time",
       "Observation Scope",
       "Actual Time (H:M:S)",
       "Utilization (%)",
@@ -1078,6 +1127,7 @@ export default function WorkMeasurementApp() {
       "Touch Labor (H:M:S)",
       "Idle Time (H:M:S)",
       "Task Log",
+      "Summary",
     ];
 
     const summaryRow = [
@@ -1093,6 +1143,7 @@ export default function WorkMeasurementApp() {
       info.station || "",
       info.supervisor || "",
       info.observer || "",
+      info.estimatedTime || "",
       info.observationScope || "",
       msToHMS(actualClockMs),
       (utilization * 100).toFixed(1),
@@ -1103,6 +1154,7 @@ export default function WorkMeasurementApp() {
       msToTime(totalActive),
       msToTime(totalIdle),
       [...sortedTaskLog].map((n) => `${fmtStamp(n.at, info.multiDay)}: ${n.text}`).join(" | "),
+      info.summary || "",
     ];
 
     const wsSummary = XLSX.utils.aoa_to_sheet([summaryHeader, summaryRow]);
@@ -1119,6 +1171,7 @@ export default function WorkMeasurementApp() {
       { wch: 16 }, // Station
       { wch: 16 }, // Supervisor
       { wch: 16 }, // Observer
+      { wch: 14 }, // Estimated Time
       { wch: 18 }, // Observation Scope
       { wch: 16 }, // Actual
       { wch: 14 }, // Utilization
@@ -1129,6 +1182,7 @@ export default function WorkMeasurementApp() {
       { wch: 18 }, // Touch
       { wch: 16 }, // Idle
       { wch: 60 }, // Task Log
+      { wch: 70 }, // Summary
     ];
     (wsSummary as any)["!freeze"] = { xSplit: 0, ySplit: 1 };
     XLSX.utils.book_append_sheet(wb, wsSummary, "Summary");
@@ -1253,6 +1307,7 @@ export default function WorkMeasurementApp() {
       "Station/Area",
       "Supervisor",
       "Observer",
+      "Estimated Time",
       "Observation Scope",
       "Actual Time (H:M:S)",
       "Utilization (%)",
@@ -1263,6 +1318,7 @@ export default function WorkMeasurementApp() {
       "Touch Labor (H:M:S)",
       "Idle Time (H:M:S)",
       "Task Log",
+      "Summary",
     ];
     const row = [
       info.date,
@@ -1277,6 +1333,7 @@ export default function WorkMeasurementApp() {
       info.station || "",
       info.supervisor || "",
       info.observer || "",
+      info.estimatedTime || "",
       info.observationScope || "",
       msToHMS(actualClockMs),
       (utilization * 100).toFixed(1),
@@ -1287,6 +1344,7 @@ export default function WorkMeasurementApp() {
       msToTime(totalActive),
       msToTime(totalIdle),
       sortedTaskLog.map((n) => `${fmtStamp(n.at, info.multiDay)}: ${n.text}`).join(" | "),
+      info.summary || "",
     ];
     download("work_measurement_summary.csv", toCSV([headers, row]));
   };
@@ -1647,7 +1705,6 @@ export default function WorkMeasurementApp() {
           })}
         </ul>
       </section>
-      
       {/* PHOTOS SECTION MOVED BELOW TASK LOG */}
 
       <section className="section card">
@@ -1957,6 +2014,24 @@ export default function WorkMeasurementApp() {
           ))}
           {sortedTaskLog.length === 0 && <li className="meta">(no notes)</li>}
         </ul>
+      </section>
+
+      <section className="section card">
+        <h2>Summary</h2>
+        <textarea
+          rows={6}
+          style={{
+            width: "100%",
+            background: "#0b1228",
+            color: "var(--ink)",
+            border: "1px solid #26345a",
+            borderRadius: 10,
+            padding: 10,
+          }}
+          placeholder="Write a concise summary of the work measurement analysis…"
+          value={info.summary || ""}
+          onChange={(e) => setInfo((prev) => ({ ...prev, summary: e.target.value }))}
+        />
       </section>
 
       {/* PHOTOS SECTION MOVED HERE */}
