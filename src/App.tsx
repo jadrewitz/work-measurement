@@ -59,6 +59,7 @@ interface AppInfo {
   station?: string;
   supervisor?: string;
   observer?: string;
+  estimatedTime?: string;
 }
 
 interface AppState {
@@ -321,6 +322,7 @@ function safeLoad(): AppState | null {
       observer: typeof p?.info?.observer === "string"
         ? p.info.observer
         : (localStorage.getItem(LAST_OBSERVER_KEY) || ""),
+      estimatedTime: typeof p?.info?.estimatedTime === "string" ? p.info.estimatedTime : "",
     };
 
     const employees: Employee[] = Array.isArray(p?.employees)
@@ -575,7 +577,9 @@ export default function WorkMeasurementApp() {
       workType: "Inspection",
       assetId: "",
       station: "",
-      supervisor: "",observer: localStorage.getItem(LAST_OBSERVER_KEY) || "",
+      supervisor: "",
+      observer: localStorage.getItem(LAST_OBSERVER_KEY) || "",
+      estimatedTime: "",
     },
   );
   const [employees, setEmployees] = useState<Employee[]>(loaded?.employees ?? []);
@@ -939,6 +943,8 @@ export default function WorkMeasurementApp() {
       assetId: "",
       station: "",
       supervisor: "",
+      estimatedTime: "",
+      observer: localStorage.getItem(LAST_OBSERVER_KEY) || "",
     });
     setEmployees([]);
     setTaskLog([]);
@@ -1611,9 +1617,9 @@ export default function WorkMeasurementApp() {
         <h2>General Info</h2>
 
         {/* Form */}
-        <div className="grid-two" style={{ marginTop: 8 }}>
-          <div className="date-col" style={{ display: "grid", gap: 8 }}>
-            {/* Multi-day toggle ABOVE Start Date */}
+        <div className="grid-three gi-grid" style={{ marginTop: 8 }}>
+          {/* Multi-day toggle ABOVE Start Date */}
+          <div className="gi-field">
             <label className="switch">
               <input
                 type="checkbox"
@@ -1623,8 +1629,10 @@ export default function WorkMeasurementApp() {
               />
               <span>Multi-day study</span>
             </label>
+          </div>
 
-            {/* Start Date */}
+          {/* Start Date */}
+          <div className="gi-field">
             <label className="stack">
               <span>Start Date</span>
               <input
@@ -1634,9 +1642,11 @@ export default function WorkMeasurementApp() {
                 onChange={handleInfoChange}
               />
             </label>
+          </div>
 
-            {/* End Date appears BELOW Start Date when multi-day is on */}
-            {info.multiDay && (
+          {/* End Date appears BELOW Start Date when multi-day is on */}
+          {info.multiDay && (
+            <div className="gi-field">
               <label className="stack">
                 <span>End Date</span>
                 <input
@@ -1647,159 +1657,208 @@ export default function WorkMeasurementApp() {
                   onChange={handleInfoChange}
                 />
               </label>
-            )}
+            </div>
+          )}
+
+          {/* Observer */}
+          <div className="gi-field">
+            <label className="stack">
+              <span>Observer</span>
+              <input
+                type="text"
+                name="observer"
+                value={info.observer || ""}
+                onChange={handleInfoChange}
+                placeholder="e.g., Your name"
+              />
+            </label>
           </div>
 
-          {/* Keep Observer in the second column */}
-          <label className="stack">
-            <span>Observer</span>
-            <input
-              type="text"
-              name="observer"
-              value={info.observer || ""}
-              onChange={handleInfoChange}
-              placeholder="e.g., Your name"
-            />
-          </label>
+          {/* Type */}
+          <div className="gi-field">
+            <label className="stack">
+              <span>Type</span>
+              <select
+                name="type"
+                value={TYPE_OPTIONS.includes((info.type || "") as any) ? info.type : "Other…"}
+                onChange={(e) => {
+                  const v = e.target.value;
+                  if (v === "Other…") {
+                    setTypeOther(info.type && !TYPE_OPTIONS.includes(info.type as any) ? info.type : "");
+                    setInfo((prev) => ({ ...prev, type: "" }));
+                  } else {
+                    setTypeOther("");
+                    setInfo((prev) => ({ ...prev, type: v }));
+                  }
+                }}
+              >
+                {TYPE_OPTIONS.map((t) => (
+                  <option key={t} value={t}>
+                    {t}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
 
-          <label className="stack">
-            <span>Type</span>
-            <select
-              name="type"
-              value={TYPE_OPTIONS.includes((info.type || "") as any) ? info.type : "Other…"}
-              onChange={(e) => {
-                const v = e.target.value;
-                if (v === "Other…") {
-                  setTypeOther(info.type && !TYPE_OPTIONS.includes(info.type as any) ? info.type : "");
-                  setInfo((prev) => ({ ...prev, type: "" }));
-                } else {
-                  setTypeOther("");
-                  setInfo((prev) => ({ ...prev, type: v }));
-                }
-              }}
-            >
-              {TYPE_OPTIONS.map((t) => (
-                <option key={t} value={t}>
-                  {t}
-                </option>
-              ))}
-            </select>
-          </label>
           {(!info.type || !TYPE_OPTIONS.includes(info.type as any)) && (
-            <label className="stack">
-              <span>Type — Other</span>
-              <input
-                type="text"
-                className="other-input"
-                value={typeOther}
-                placeholder="Describe type (e.g., AOG, Special Project)"
-                onChange={(e) => {
-                  const v = e.target.value;
-                  setTypeOther(v);
-                  setInfo((prev) => ({ ...prev, type: v }));
-                }}
-              />
-            </label>
+            <div className="gi-field">
+              <label className="stack">
+                <span>Type — Other</span>
+                <input
+                  type="text"
+                  className="other-input"
+                  value={typeOther}
+                  placeholder="Describe type (e.g., AOG, Special Project)"
+                  onChange={(e) => {
+                    const v = e.target.value;
+                    setTypeOther(v);
+                    setInfo((prev) => ({ ...prev, type: v }));
+                  }}
+                />
+              </label>
+            </div>
           )}
 
-          <label className="stack">
-            <span>Work Type</span>
-            <select
-              name="workType"
-              value={WORKTYPE_OPTIONS.includes((info.workType || "") as any) ? info.workType : "Other…"}
-              onChange={(e) => {
-                const v = e.target.value;
-                if (v === "Other…") {
-                  setWorkTypeOther(info.workType && !WORKTYPE_OPTIONS.includes(info.workType as any) ? info.workType : "");
-                  setInfo((prev) => ({ ...prev, workType: "" }));
-                } else {
-                  setWorkTypeOther("");
-                  setInfo((prev) => ({ ...prev, workType: v }));
-                }
-              }}
-            >
-              {WORKTYPE_OPTIONS.map((t) => (
-                <option key={t} value={t}>
-                  {t}
-                </option>
-              ))}
-            </select>
-          </label>
+          {/* Work Type */}
+          <div className="gi-field">
+            <label className="stack">
+              <span>Work Type</span>
+              <select
+                name="workType"
+                value={WORKTYPE_OPTIONS.includes((info.workType || "") as any) ? info.workType : "Other…"}
+                onChange={(e) => {
+                  const v = e.target.value;
+                  if (v === "Other…") {
+                    setWorkTypeOther(info.workType && !WORKTYPE_OPTIONS.includes(info.workType as any) ? info.workType : "");
+                    setInfo((prev) => ({ ...prev, workType: "" }));
+                  } else {
+                    setWorkTypeOther("");
+                    setInfo((prev) => ({ ...prev, workType: v }));
+                  }
+                }}
+              >
+                {WORKTYPE_OPTIONS.map((t) => (
+                  <option key={t} value={t}>
+                    {t}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
+
           {(!info.workType || !WORKTYPE_OPTIONS.includes(info.workType as any)) && (
-            <label className="stack">
-              <span>Work Type — Other</span>
-              <input
-                type="text"
-                className="other-input"
-                value={workTypeOther}
-                placeholder="Describe work type"
-                onChange={(e) => {
-                  const v = e.target.value;
-                  setWorkTypeOther(v);
-                  setInfo((prev) => ({ ...prev, workType: v }));
-                }}
-              />
-            </label>
+            <div className="gi-field">
+              <label className="stack">
+                <span>Work Type — Other</span>
+                <input
+                  type="text"
+                  className="other-input"
+                  value={workTypeOther}
+                  placeholder="Describe work type"
+                  onChange={(e) => {
+                    const v = e.target.value;
+                    setWorkTypeOther(v);
+                    setInfo((prev) => ({ ...prev, workType: v }));
+                  }}
+                />
+              </label>
+            </div>
           )}
 
-          <label className="stack">
-            <span>Location</span>
-            <input
-              type="text"
-              name="location"
-              value={info.location}
-              onChange={handleInfoChange}
-              placeholder="e.g., Hangar 5A; Backshop"
-            />
-          </label>
+          {/* Location */}
+          <div className="gi-field">
+            <label className="stack">
+              <span>Location</span>
+              <input
+                type="text"
+                name="location"
+                value={info.location}
+                onChange={handleInfoChange}
+                placeholder="e.g., Hangar 5A; Backshop"
+              />
+            </label>
+          </div>
 
-          <label className="stack">
-            <span>Procedure</span>
-            <input
-              type="text"
-              name="procedure"
-              value={info.procedure}
-              onChange={handleInfoChange}
-              placeholder="e.g., Manual; Repair Procedure"
-            />
-          </label>
+          {/* Procedure */}
+          <div className="gi-field">
+            <label className="stack">
+              <span>Procedure</span>
+              <input
+                type="text"
+                name="procedure"
+                value={info.procedure}
+                onChange={handleInfoChange}
+                placeholder="e.g., Manual; Repair Procedure"
+              />
+            </label>
+          </div>
 
-          <label className="stack">
-            <span>Work Order</span>
-            <input
-              type="text"
-              name="workOrder"
-              value={info.workOrder}
-              onChange={handleInfoChange}
-              placeholder="e.g., 55555-1000-0001"
-            />
-          </label>
+          {/* Work Order */}
+          <div className="gi-field">
+            <label className="stack">
+              <span>Work Order</span>
+              <input
+                type="text"
+                name="workOrder"
+                value={info.workOrder}
+                onChange={handleInfoChange}
+                placeholder="e.g., 55555-1000-0001"
+              />
+            </label>
+          </div>
 
-          <label className="stack">
-            <span>Task</span>
-            <input
-              type="text"
-              name="task"
-              value={info.task}
-              onChange={handleInfoChange}
-              placeholder="e.g., Landing Gear Removal; Screw Extraction"
-            />
-          </label>
+          {/* Estimated Time */}
+          <div className="gi-field">
+            <label className="stack">
+              <span>Estimated Time</span>
+              <input
+                type="text"
+                name="estimatedTime"
+                value={info.estimatedTime || ""}
+                onChange={handleInfoChange}
+                placeholder="e.g., 03:30 (HH:MM)"
+              />
+            </label>
+          </div>
 
-          <label className="stack">
-            <span>Asset ID</span>
-            <input type="text" name="assetId" value={info.assetId || ""} onChange={handleInfoChange} placeholder="e.g., Tail # / Serial" />
-          </label>
+          {/* Task */}
+          <div className="gi-field">
+            <label className="stack">
+              <span>Task</span>
+              <input
+                type="text"
+                name="task"
+                value={info.task}
+                onChange={handleInfoChange}
+                placeholder="e.g., Landing Gear Removal; Screw Extraction"
+              />
+            </label>
+          </div>
 
-          <label className="stack">
-            <span>Station/Area</span>
-            <input type="text" name="station" value={info.station || ""} onChange={handleInfoChange} placeholder="e.g., Bay 12 / Area B" />
-          </label>
+          {/* Asset ID */}
+          <div className="gi-field">
+            <label className="stack">
+              <span>Asset ID</span>
+              <input type="text" name="assetId" value={info.assetId || ""} onChange={handleInfoChange} placeholder="e.g., Tail # / Serial" />
+            </label>
+          </div>
 
-          <label className="stack">
-            <span>Supervisor</span>
-            <input type="text" name="supervisor" value={info.supervisor || ""} onChange={handleInfoChange} placeholder="e.g., J. Smith" />
-          </label>
+          {/* Station/Area */}
+          <div className="gi-field">
+            <label className="stack">
+              <span>Station/Area</span>
+              <input type="text" name="station" value={info.station || ""} onChange={handleInfoChange} placeholder="e.g., Bay 12 / Area B" />
+            </label>
+          </div>
+
+          {/* Supervisor */}
+          <div className="gi-field">
+            <label className="stack">
+              <span>Supervisor</span>
+              <input type="text" name="supervisor" value={info.supervisor || ""} onChange={handleInfoChange} placeholder="e.g., J. Smith" />
+            </label>
+          </div>
         </div>
 
         <div className="kpis" style={{ marginTop: 12 }}>

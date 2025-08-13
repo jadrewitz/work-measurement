@@ -75,9 +75,51 @@ body{
   padding:14px; box-shadow:var(--shadow);
 }
 
-/* Grids */
-.grid-two{ display:grid; grid-template-columns:1fr 1fr; gap:12px; align-items:center; }
-.grid-auto{ display:grid; gap:10px; }
+
+/* ---------- General Info uniform 3-col grid ---------- */
+/* Container used in App.tsx: <div class="gi-grid"> ... <div class="gi-field"> */
+.gi-grid{
+  display:grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap:12px;
+  align-items:stretch;       /* make children stretch to same row height */
+}
+@media (max-width: 980px){
+  .gi-grid{ grid-template-columns: 1fr 1fr; }
+}
+@media (max-width: 640px){
+  .gi-grid{ grid-template-columns: 1fr; }
+}
+
+/* Each tile wraps a label+control stack and keeps consistent height */
+.gi-field{
+  display:grid;
+  align-content:start;
+  min-height: 86px;          /* unify tile heights */
+}
+
+/* Ensure the label/input stack fills the tile, with consistent control height */
+.gi-field .stack{
+  height:100%;
+}
+.gi-field .stack > input[type="text"],
+.gi-field .stack > input[type="date"],
+.gi-field .stack > select{
+  height:40px;               /* match selects & inputs */
+}
+
+/* Inline checkbox row used for Multi-day toggle */
+.gi-inline{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  height:40px;               /* align with other controls */
+}
+
+/* When an “Other…” text field appears, keep the tile height consistent */
+.gi-field .other-input{
+  height:40px;
+}
 
 /* Form controls */
 label.stack{ display:grid; gap:6px; font-size:13px; color:#ffffff; }
