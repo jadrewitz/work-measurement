@@ -1460,6 +1460,14 @@ export default function WorkMeasurementApp() {
 
             return (
               <li key={emp.id} className={`emp ${statusClass}`}>
+                <button
+                  className="emp-remove"
+                  aria-label={`Remove ${emp.name}`}
+                  onClick={() => deleteEmployee(emp.id)}
+                  title="Remove employee"
+                >
+                  ×
+                </button>
                 <div>
                   <div style={{ fontWeight: 700, fontSize: 16 }}>{emp.name}</div>
 
@@ -1564,9 +1572,6 @@ export default function WorkMeasurementApp() {
                     title={emp.status === "idle" ? "Nothing to stop" : "Stop timer"}
                   >
                     Stop
-                  </button>
-                  <button className="btn ghost" onClick={() => deleteEmployee(emp.id)} title="Remove employee">
-                    Remove
                   </button>
                 </div>
                 <div

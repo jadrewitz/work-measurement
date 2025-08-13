@@ -7,9 +7,9 @@
   --muted:#ffffff;
   --line:#243051;
   --brand:#6aa7ff;
-  --success:#35c98e;
-  --warn:#ffd166;
-  --danger:#ff6b6b;
+  --success:#22c55e;
+  --warn:#f59e0b;
+  --danger:#ef4444;
   --shadow:0 8px 30px rgba(0,0,0,.30), 0 4px 10px rgba(0,0,0,.18);
   --radius:14px;
   --radius-sm:10px;
@@ -147,6 +147,7 @@ select:focus, select.btn:focus{
 
 .emp{
   display:flex; justify-content:space-between; align-items:center; gap:14px;
+  position:relative;
   padding:14px; border:1px solid var(--line); border-radius:12px;
   background:linear-gradient(180deg,#0f1735,#0f1731); color:#ffffff;
 }
@@ -161,6 +162,50 @@ select:focus, select.btn:focus{
 .emp { transition: border-color .2s ease, border-width .2s ease; }
 
 .emp .meta{ margin:6px 0 0; font-size:12px; color:#ffffff; }
+
+/* Colored "Remove" button inside employee cards */
+.emp .btn.ghost{
+  color: var(--danger);
+  border-color: var(--danger);
+  background: transparent;
+}
+.emp .btn.ghost:hover{
+  background: rgba(239, 68, 68, 0.12); /* subtle red tint */
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.25);
+}
+.emp .btn.ghost:active{
+  transform: translateY(0) scale(.98);
+}
+
+/* Circular overlay remove button on employee cards */
+.emp-remove{
+  position:absolute;
+  top:8px;
+  right:8px;
+  width:28px;
+  height:28px;
+  border-radius:999px;
+  background:var(--danger);
+  color:#fff;
+  border:none;
+  font-size:16px;
+  font-weight:700;
+  line-height:1;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  cursor:pointer;
+  box-shadow:0 2px 6px rgba(0,0,0,.25);
+  transition: transform .08s ease, box-shadow .2s ease, background .2s ease, opacity .2s ease;
+}
+.emp-remove:hover{
+  transform: scale(1.06);
+  background:#dc2626; /* slightly deeper red */
+  box-shadow:0 4px 12px rgba(0,0,0,.28);
+}
+.emp-remove:active{
+  transform: scale(.98);
+}
 
 /* Single-line status row at bottom of each card */
 .card-status{
@@ -365,9 +410,9 @@ html[data-theme="light"]{
   --muted:#475569;
   --line:#d6d9e3;
   --brand:#2754e6;
-  --success:#1e9e6a;
-  --warn:#b58900;
-  --danger:#c0392b;
+  --success:#22c55e;  /* brighter green */
+  --warn:#f59e0b;     /* brighter yellow/amber */
+  --danger:#ef4444;   /* brighter red */
 }
 
 /* Base backgrounds */
@@ -409,6 +454,11 @@ html[data-theme="light"] .app-header{
   background:linear-gradient(180deg,#eef2ff,#e2e8f0);
   border-color:#e2e8f0;
 }
+html[data-theme="light"] .app-title .badge{
+  color:#334155;            /* darker text for light background */
+  border-color:#cbd5e1;     /* softer border in light mode */
+  background:#eef2ff;       /* subtle pill background so it stands out */
+}
 
 /* Inputs / selects */
 html[data-theme="light"] input[type="text"],
@@ -437,19 +487,28 @@ html[data-theme="light"] .btn.ghost{
   border-color:#cbd5e1;
 }
 html[data-theme="light"] .btn.red{
-  background:#fee2e2;
-  color:#7f1d1d;
-  border-color:#fecaca;
+  background: var(--danger);   /* vivid red */
+  color: #ffffff;              /* white text */
+  border-color: #b91c1c;       /* deeper red border */
+}
+html[data-theme="light"] .btn.red:hover{
+  box-shadow: 0 0 0 3px rgba(239,68,68,.35);
 }
 html[data-theme="light"] .btn.yellow{
-  background:#fef9c3;
-  color:#713f12;
-  border-color:#fde68a;
+  background: var(--warn);     /* vivid amber/yellow */
+  color: #111827;              /* near-black text for contrast */
+  border-color: #b45309;       /* deeper amber border */
+}
+html[data-theme="light"] .btn.yellow:hover{
+  box-shadow: 0 0 0 3px rgba(245,158,11,.35);
 }
 html[data-theme="light"] .btn.green{
-  background:#dcfce7;
-  color:#065f46;
-  border-color:#bbf7d0;
+  background: var(--success);   /* vivid green */
+  color: #ffffff;               /* white text */
+  border-color: #16a34a;        /* deeper green border */
+}
+html[data-theme="light"] .btn.green:hover{
+  box-shadow: 0 0 0 3px rgba(34,197,94,.35);
 }
 html[data-theme="light"] .btn.blue{
   background:#dbeafe;
@@ -510,3 +569,36 @@ html[data-theme="light"] .emp .meta{
 html[data-theme="light"] .emp.emp-active  { border-color: var(--success); }
 html[data-theme="light"] .emp.emp-paused  { border-color: var(--warn); }
 html[data-theme="light"] .emp.emp-stopped { border-color: var(--danger); }
+
+/* Make paused state border more visible in light mode */
+html[data-theme="light"] .emp.emp-paused{
+  border-width: 2px;
+  border-color: var(--warn);
+  box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.25); /* subtle amber glow */
+}
+html[data-theme="light"] .emp.emp-active{
+  border-width: 2px;
+  border-color: var(--success);
+  box-shadow: 0 0 0 2px rgba(34, 197, 94, 0.22); /* green glow */
+}
+html[data-theme="light"] .emp.emp-stopped{
+  border-width: 2px;
+  border-color: var(--danger);
+  box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.22); /* red glow */
+}
+
+/* Light mode: keep Remove button vivid */
+html[data-theme="light"] .emp .btn.ghost{
+  color: var(--danger);
+  border-color: var(--danger);
+  background: transparent;
+}
+html[data-theme="light"] .emp .btn.ghost:hover{
+  background: rgba(239, 68, 68, 0.14);
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.18);
+}
+
+/* Ensure the single-line status text is vivid in light mode */
+html[data-theme="light"] .card-status .state-active{ color: var(--success); }
+html[data-theme="light"] .card-status .state-paused{ color: var(--warn); }
+html[data-theme="light"] .card-status .state-stopped{ color: var(--danger); }
