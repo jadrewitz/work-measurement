@@ -178,8 +178,18 @@ select:focus, select.btn:focus{
 }
 .app-header .toolbar .btn.red{ background:#5f1d24; border-color:#a23a45; color:#ffe5e7; }
 
-/* KPI cards */
-.kpis{ display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin-top:12px; }
+.kpis{
+  display:grid;
+  grid-template-columns: repeat(6, minmax(0,1fr));
+  gap:8px;
+  margin-top:12px;
+}
+@media (max-width: 980px){
+  .kpis{ grid-template-columns: repeat(3, minmax(0,1fr)); }
+}
+@media (max-width: 640px){
+  .kpis{ grid-template-columns: repeat(2, minmax(0,1fr)); }
+}
 .kpi{ background:linear-gradient(180deg,#0f1736,#0e142d); border:1px solid var(--line); border-radius:12px; padding:12px }
 .kpi .label{ color:#ffffff; font-size:12px }
 .kpi .num{ font-family:var(--mono); font-weight:700; font-size:20px; margin-top:6px; color:#ffffff }
@@ -644,3 +654,43 @@ html[data-theme="light"] .emp .btn.ghost:hover{
 html[data-theme="light"] .card-status .state-active{ color: var(--success); }
 html[data-theme="light"] .card-status .state-paused{ color: var(--warn); }
 html[data-theme="light"] .card-status .state-stopped{ color: var(--danger); }
+/* =====================================
+   Compact KPI sizing to fit one card
+   ===================================== */
+
+/* Make the small KPI tiles tighter */
+.kpi{
+  padding:10px;
+}
+.kpi .label{ font-size:11px; }
+.kpi .num{ font-size:18px; }
+
+/* Shrink the big timers that use inline monospace styles in the KPI strip */
+.kpi-strip [style*="font-family: ui-monospace"],
+.kpi-strip [style*="monospace"],
+.kpi-strip [style*="font-weight: 800"]{
+  font-size:24px !important; /* was ~36px, then 28px */
+  line-height:1.05 !important;
+}
+
+/* Give the KPI strip a little less vertical spacing */
+.kpi-strip .kpis{
+  margin-top:8px;
+  display:grid;
+  grid-template-columns: repeat(6, minmax(0,1fr));
+  gap:8px;
+}
+@media (max-width: 980px){
+  .kpi-strip .kpis{ grid-template-columns: repeat(3, minmax(0,1fr)); }
+}
+@media (max-width: 640px){
+  .kpi-strip .kpis{ grid-template-columns: repeat(2, minmax(0,1fr)); }
+}
+.kpi-strip .kpi{ min-height: unset; }
+.kpi-strip .kpi{ padding:8px; }
+.kpi-strip .kpi .label{ font-size:10px; }
+.kpi-strip .kpi .num{ font-size:16px; }
+
+/* Slightly reduce the vertical size of progress visuals inside the strip */
+.kpi-strip .chart-card{ padding:8px; }
+.kpi-strip .chart-legend{ margin-bottom:6px; }

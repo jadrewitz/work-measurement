@@ -6,6 +6,7 @@ import heic2any from "heic2any";
 
 /* ---------- Types ---------- */
 type EmpStatus = "idle" | "active" | "paused";
+type ObsScope = "Full" | "Partial";
 type TimeEvent = "start" | "pause" | "stop" | "deleted";
 
 interface Employee {
@@ -60,6 +61,7 @@ interface AppInfo {
   supervisor?: string;
   observer?: string;
   estimatedTime?: string;
+  observationScope?: ObsScope;
 }
 
 interface AppState {
@@ -323,6 +325,7 @@ function safeLoad(): AppState | null {
         ? p.info.observer
         : (localStorage.getItem(LAST_OBSERVER_KEY) || ""),
       estimatedTime: typeof p?.info?.estimatedTime === "string" ? p.info.estimatedTime : "",
+      observationScope: p?.info?.observationScope === "Partial" ? "Partial" : "Full",
     };
 
     const employees: Employee[] = Array.isArray(p?.employees)
@@ -580,6 +583,7 @@ export default function WorkMeasurementApp() {
       supervisor: "",
       observer: localStorage.getItem(LAST_OBSERVER_KEY) || "",
       estimatedTime: "",
+      observationScope: "Full",
     },
   );
   const [employees, setEmployees] = useState<Employee[]>(loaded?.employees ?? []);
@@ -1064,6 +1068,7 @@ export default function WorkMeasurementApp() {
       "Station/Area",
       "Supervisor",
       "Observer",
+      "Observation Scope",
       "Actual Time (H:M:S)",
       "Utilization (%)",
       "Crew-hours",
@@ -1088,6 +1093,7 @@ export default function WorkMeasurementApp() {
       info.station || "",
       info.supervisor || "",
       info.observer || "",
+      info.observationScope || "",
       msToHMS(actualClockMs),
       (utilization * 100).toFixed(1),
       crewHours.toFixed(2),
@@ -1113,6 +1119,7 @@ export default function WorkMeasurementApp() {
       { wch: 16 }, // Station
       { wch: 16 }, // Supervisor
       { wch: 16 }, // Observer
+      { wch: 18 }, // Observation Scope
       { wch: 16 }, // Actual
       { wch: 14 }, // Utilization
       { wch: 12 }, // Crew-hours
@@ -1246,6 +1253,7 @@ export default function WorkMeasurementApp() {
       "Station/Area",
       "Supervisor",
       "Observer",
+      "Observation Scope",
       "Actual Time (H:M:S)",
       "Utilization (%)",
       "Crew-hours",
@@ -1269,6 +1277,7 @@ export default function WorkMeasurementApp() {
       info.station || "",
       info.supervisor || "",
       info.observer || "",
+      info.observationScope || "",
       msToHMS(actualClockMs),
       (utilization * 100).toFixed(1),
       crewHours.toFixed(2),
@@ -1367,7 +1376,7 @@ export default function WorkMeasurementApp() {
       </header>
 
       {/* --- KPI strip (sticky) --- */}
-      <section className="section card kpi-strip">
+      <section className="section card">
         <h2>KPI</h2>
 
         {/* Big counters */}
@@ -1423,6 +1432,34 @@ export default function WorkMeasurementApp() {
         <div style={{ display: "grid", gap: 12, gridTemplateColumns: "1fr 1fr", marginTop: 8 }}>
           <ProgressBar value={utilization * 100} />
           <StackedBar touchMs={totalActive} idleMs={totalIdle} />
+        </div>
+
+        {/* Compact KPIs moved here */}
+        <div className="kpis" style={{ marginTop: 10 }}>
+          <div className="kpi">
+            <div className="label">Total Employees</div>
+            <div className="num">{employees.length}</div>
+          </div>
+          <div className="kpi">
+            <div className="label">Total Sessions</div>
+            <div className="num">{timeLog.filter((t) => t.event !== "deleted").length}</div>
+          </div>
+          <div className="kpi">
+            <div className="label">Combined Time</div>
+            <div className="num">{msToTime(totalAll)}</div>
+          </div>
+          <div className="kpi">
+            <div className="label">Utilization</div>
+            <div className="num">{(utilization * 100).toFixed(1)}%</div>
+          </div>
+          <div className="kpi">
+            <div className="label">Crew-hours</div>
+            <div className="num">{crewHours.toFixed(2)}</div>
+          </div>
+          <div className="kpi">
+            <div className="label">Idle Ratio</div>
+            <div className="num">{(idleRatio * 100).toFixed(1)}%</div>
+          </div>
         </div>
       </section>
 
@@ -1859,34 +1896,25 @@ export default function WorkMeasurementApp() {
               <input type="text" name="supervisor" value={info.supervisor || ""} onChange={handleInfoChange} placeholder="e.g., J. Smith" />
             </label>
           </div>
+
+          {/* Observation Scope */}
+          <div className="gi-field">
+            <label className="stack">
+              <span>Observation Scope</span>
+              <select
+                name="observationScope"
+                value={info.observationScope || "Full"}
+                onChange={handleInfoChange}
+                className="btn"
+              >
+                <option value="Full">Full</option>
+                <option value="Partial">Partial</option>
+              </select>
+            </label>
+          </div>
         </div>
 
-        <div className="kpis" style={{ marginTop: 12 }}>
-          <div className="kpi">
-            <div className="label">Total Employees</div>
-            <div className="num">{employees.length}</div>
-          </div>
-          <div className="kpi">
-            <div className="label">Total Sessions</div>
-            <div className="num">{timeLog.filter((t) => t.event !== "deleted").length}</div>
-          </div>
-          <div className="kpi">
-            <div className="label">Combined Time</div>
-            <div className="num">{msToTime(totalAll)}</div>
-          </div>
-          <div className="kpi">
-            <div className="label">Utilization</div>
-            <div className="num">{(utilization * 100).toFixed(1)}%</div>
-          </div>
-          <div className="kpi">
-            <div className="label">Crew-hours</div>
-            <div className="num">{crewHours.toFixed(2)}</div>
-          </div>
-          <div className="kpi">
-            <div className="label">Idle Ratio</div>
-            <div className="num">{(idleRatio * 100).toFixed(1)}%</div>
-          </div>
-        </div>
+
       </section>
 
       
