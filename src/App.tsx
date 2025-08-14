@@ -692,6 +692,8 @@ export default function WorkMeasurementApp() {
 
   const [employeeName, setEmployeeName] = useState("");
   const [note, setNote] = useState("");
+  // --- AI summary loading state ---
+  const [aiBusy, setAiBusy] = useState(false);
 
   // “Other…” reveal controls for General Info
   const [typeOther, setTypeOther] = useState("");
@@ -1097,6 +1099,61 @@ export default function WorkMeasurementApp() {
     if (lastStopAt == null) addSpan(tPrev, nowMs);
     return rows;
   }, [timeLog, lastStopAt, nowMs]);
+
+  // --- AI Summary generation ---
+  async function generateSummaryWithAI() {
+    if (aiBusy) return;
+    try {
+      setAiBusy(true);
+
+      const payload = {
+        info,
+        employees: employees.map(e => ({
+          id: e.id, name: e.name, role: e.role || "", skill: e.skill || "",
+          status: e.status, elapsedTime: e.elapsedTime, pausedAccum: e.pausedAccum
+        })),
+        taskLog: sortedTaskLog.map(t => ({ at: t.at, text: t.text })),
+        timeLog: sortedTimeLog.map(t => ({
+          at: t.at, employeeName: t.employeeName, event: t.event, reasonCode: t.reasonCode || "", comment: t.comment || ""
+        })),
+        kpis: {
+          actualClockHMS: msToHMS(actualClockMs),
+          touchHMS: msToHMS(totalActive),
+          idleHMS: msToHMS(totalIdle),
+          utilizationPct: Number((utilization * 100).toFixed(1)),
+          crewHours: Number(crewHours.toFixed(2)),
+          idleRatioPct: Number((idleRatio * 100).toFixed(1)),
+          totalEmployees: employees.length,
+          totalSessions: timeLog.filter(t => t.event !== "deleted").length,
+        },
+        photos: reportPhotos.map(p => ({ name: p.name || "", caption: p.caption || "" }))
+      };
+
+      const res = await fetch("/api/summarize", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      if (!res.ok) {
+        const msg = await res.text();
+        throw new Error(msg || `Request failed: ${res.status}`);
+      }
+
+      const data = await res.json().catch(() => ({}));
+      const nextSummary = (data && (data.summary || data.text)) || "";
+      if (nextSummary) {
+        setInfo(prev => ({ ...prev, summary: nextSummary }));
+      } else {
+        alert("The AI did not return a summary. Please try again.");
+      }
+    } catch (err) {
+      console.error("AI summary error:", err);
+      alert("Could not generate summary. Check your network/keys and try again.");
+    } finally {
+      setAiBusy(false);
+    }
+  }
 
   /* ---------- Exports ---------- */
   const exportExcel = () => {
@@ -2032,6 +2089,29 @@ export default function WorkMeasurementApp() {
           value={info.summary || ""}
           onChange={(e) => setInfo((prev) => ({ ...prev, summary: e.target.value }))}
         />
+        <div style={{ display: "flex", gap: 8, marginTop: 8, alignItems: "center", flexWrap: "wrap" }}>
+          <button
+            className="btn blue"
+            type="button"
+            onClick={generateSummaryWithAI}
+            disabled={aiBusy}
+            aria-disabled={aiBusy ? "true" : "false"}
+            title="Generate summary using AI"
+          >
+            {aiBusy ? "Generating…" : "Generate with AI"}
+          </button>
+          <button
+            className="btn ghost"
+            type="button"
+            onClick={() => setInfo(prev => ({ ...prev, summary: "" }))}
+            disabled={aiBusy}
+            aria-disabled={aiBusy ? "true" : "false"}
+            title="Clear summary text"
+          >
+            Clear
+          </button>
+          <span className="meta">This will call /api/summarize with your current data.</span>
+        </div>
       </section>
 
       {/* PHOTOS SECTION MOVED HERE */}

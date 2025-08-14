@@ -419,6 +419,7 @@ function renderHTML(
           <div class="kpi"><div class="label">Actual</div><div class="num">${msToHMS(actualClockMs)}</div></div>
           <div class="kpi"><div class="label">Touch</div><div class="num">${msToHMS(totalActive)}</div></div>
           <div class="kpi"><div class="label">Idle</div><div class="num">${msToHMS(totalIdle)}</div></div>
+          <div class="kpi"><div class="label">Combined</div><div class="num">${msToHMS(totalAll)}</div></div>
           <div class="kpi"><div class="label">Utilization</div><div class="num">${(utilization * 100).toFixed(1)}%</div></div>
           <div class="kpi"><div class="label">Crew-hours</div><div class="num">${crewHours.toFixed(2)}</div></div>
           <div class="kpi"><div class="label">Idle Ratio</div><div class="num">${(idleRatio * 100).toFixed(1)}%</div></div>
