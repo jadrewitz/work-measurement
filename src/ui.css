@@ -172,11 +172,22 @@ select:focus, select.btn:focus{
 .app-header .toolbar .btn{
   padding:6px 10px !important;
   font-size:13px !important;
-  height:36px !important; min-height:36px !important;
-  min-width:120px !important;
-  line-height:1 !important; white-space:nowrap;
-  display:inline-flex; align-items:center; justify-content:center;
+  height:36px !important; 
+  min-height:36px !important;
+  width:160px !important;       /* force equal width */
+  min-width:160px !important;
+  line-height:1 !important; 
+  white-space:nowrap;
+  display:inline-flex; 
+  align-items:center; 
+  justify-content:center;
   box-sizing: border-box;
+}
+
+/* Utility to force equal-width buttons where needed */
+.btn-wide{ 
+  width:160px !important; 
+  min-width:160px !important; 
 }
 .app-header .toolbar .btn.red{ background:#5f1d24; border-color:#a23a45; color:#ffe5e7; }
 
@@ -752,6 +763,59 @@ html[data-theme="light"] .card-status .state-stopped{ color: var(--danger); }
 .kpi-strip .kpi{ padding:8px; }
 .kpi-strip .kpi .label{ font-size:10px; }
 .kpi-strip .kpi .num{ font-size:16px; }
+
+/* Thicker outline for the three big KPI counters (Actual/Touch/Idle) */
+.kpi-strip [style*="padding: 10px 14px"][style*="display: grid"][style*="border: 1px solid"]{
+  border-width: 2px !important;
+  border-color: rgba(170,178,200,0.60) !important; /* stronger in dark mode */
+  border-radius: 12px; /* keep existing rounding */
+}
+
+/* Light mode: slightly darker border for readability */
+html[data-theme="light"] .kpi-strip [style*="padding: 10px 14px"][style*="display: grid"][style*="border: 1px solid"]{
+  border-color: #cbd5e1 !important;
+}
+
+/* --- Robust outline for KPI counters (doesn't depend on inline style order) --- */
+/* Match any tile that has a bold label and a monospace big number */
+.kpi-strip div:has(> div[style*="font-weight: 800"]):has(> div[style*="font-family: ui-monospace"]),
+.section.card div:has(> div[style*="font-weight: 800"]):has(> div[style*="font-family: ui-monospace"]) {
+  /* Neutralize the thin inline border and draw a thicker ring */
+  border-color: transparent !important;
+  border-width: 0 !important;
+  box-shadow: 0 0 0 2px rgba(170,178,200,0.55) !important;
+  border-radius: 12px !important;
+}
+
+/* Light mode: darker ring for contrast */
+html[data-theme="light"] .kpi-strip div:has(> div[style*="font-weight: 800"]):has(> div[style*="font-family: ui-monospace"]),
+html[data-theme="light"] .section.card div:has(> div[style*="font-weight: 800"]):has(> div[style*="font-family: ui-monospace"]) {
+  box-shadow: 0 0 0 2px #cbd5e1 !important;
+}
+
+/* If you want a 6px border *plus* the existing background shadow, keep both */
+.kpi-strip div:has(> div[style*="font-weight: 800"]):has(> div[style*="font-family: ui-monospace"])::after,
+.section.card div:has(> div[style*="font-weight: 800"]):has(> div[style*="font-family: ui-monospace"])::after {
+  content:"";
+  position:absolute;
+  inset:0;
+  border-radius:12px;
+  pointer-events:none;
+}
+
+/* Ensure these tiles are positioned to show the ring cleanly */
+.kpi-strip div:has(> div[style*="font-weight: 800"]):has(> div[style*="font-family: ui-monospace"]),
+.section.card div:has(> div[style*="font-weight: 800"]):has(> div[style*="font-family: ui-monospace"]) {
+  position: relative;
+}
+
+/* Optional: if the ring looks tight, give a hair more internal padding */
+.kpi-strip div:has(> div[style*="font-weight: 800"]):has(> div[style*="font-family: ui-monospace"]) > *:first-child,
+.section.card div:has(> div[style*="font-weight: 800"]):has(> div[style*="font-family: ui-monospace"]) > *:first-child {
+  /* no-op, left for future tweak */
+}
+
+/* --- end robust outline --- */
 
 /* Slightly reduce the vertical size of progress visuals inside the strip */
 .kpi-strip .chart-card{ padding:8px; }
