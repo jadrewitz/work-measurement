@@ -9,7 +9,7 @@ const OPENAI_URL = "https://api.openai.com/v1/chat/completions";
 const CORS = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
-  "Access-Control-Allow-Headers": "Content-Type,Authorization"
+  "Access-Control-Allow-Headers": "Content-Type,Authorization,X-OpenAI-Key,X-OpenAI-Model"
 };
 
 function cors(res) {
@@ -40,7 +40,8 @@ module.exports = async function (context, req) {
         body: {
           ok: true,
           message: "summarize API is alive",
-          model: MODEL
+          model: MODEL,
+          mode: /localhost|127\.0\.0\.1/.test(String((req.headers && (req.headers.origin || req.headers["x-forwarded-host"])) || "")) ? "local-dev" : "cloud"
         }
       });
       return;
@@ -52,9 +53,28 @@ module.exports = async function (context, req) {
       return;
     }
 
-    const key = process.env.OPENAI_API_KEY || process.env.OPENAI_KEY;
+    // Resolve API key: prefer server env; allow dev override via headers only for localhost
+    const origin = (req.headers && (req.headers.origin || req.headers["x-forwarded-host"])) || "";
+    const isLocalOrigin = /localhost|127\.0\.0\.1/.test(String(origin));
+
+    const headerKey =
+      (req.headers &&
+        (req.headers["x-openai-key"] ||
+         req.headers["x-openai-api-key"] ||
+         (typeof req.headers.authorization === "string" && req.headers.authorization.replace(/^Bearer\s+/i, "")))) || "";
+
+    const key = process.env.OPENAI_API_KEY || process.env.OPENAI_KEY || (isLocalOrigin ? String(headerKey).trim() : "");
+
     if (!key) {
-      context.res = cors({ status: 500, body: { error: "Server missing OPENAI_API_KEY" } });
+      context.res = cors({
+        status: 500,
+        body: {
+          error: "Server missing OPENAI_API_KEY",
+          hint: isLocalOrigin
+            ? "For local testing, send your key in the X-OpenAI-Key header (or Authorization: Bearer ...) OR set OPENAI_API_KEY in your env."
+            : "Set OPENAI_API_KEY in your Azure Function App settings."
+        }
+      });
       return;
     }
 
@@ -91,7 +111,7 @@ Keep it concise (6–10 sentences).`;
         "Content-Type": "application/json"
       },
       body: JSON.stringify({
-        model: MODEL,
+        model: (req.body && req.body.model) || (req.headers && req.headers["x-openai-model"]) || MODEL,
         temperature: 0.2,
         messages: [
           { role: "system", content: system },
