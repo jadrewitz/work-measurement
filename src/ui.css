@@ -128,6 +128,26 @@ input[type="text"], input[type="date"]{
   border:1px solid #26345a; border-radius:var(--radius-sm);
   padding:10px 12px; outline:none;
 }
+/* iOS/iPadOS Safari date input normalization — keeps native picker */
+input[type="date"]{
+  height:40px;             /* unify height with text inputs */
+  line-height:40px;        /* vertically center value */
+}
+/* Tighten internal editable area so iPad doesn't expand the control */
+input[type="date"]::-webkit-date-and-time-value{
+  min-height:0;
+  padding:0;
+}
+input[type="date"]::-webkit-datetime-edit{
+  padding:0 0 0 8px;       /* left padding so text isn’t flush */
+}
+/* Make sure the calendar icon remains visible/clickable */
+input[type="date"]::-webkit-calendar-picker-indicator{
+  padding:0 6px;
+  margin:0;
+  opacity:.85;
+  cursor:pointer;
+}
 input::placeholder{ color:#7284a7 }
 input:focus{ border-color:#4166ff; box-shadow:0 0 0 3px #4166ff33 }
 

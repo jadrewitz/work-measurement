@@ -820,7 +820,12 @@ export default function WorkMeasurementApp() {
   const handleInfoChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value, type, checked } = e.target as HTMLInputElement;
     if (type === "checkbox" && name === "multiDay") {
-      setInfo((prev) => ({ ...prev, multiDay: checked, endDate: checked ? prev.endDate || todayISO() : "" }));
+      setInfo((prev) => ({
+        ...prev,
+        multiDay: checked,
+        // When turning multi‑day on, if endDate is empty, seed it with start date (or today)
+        endDate: checked ? (prev.endDate || prev.date || todayISO()) : prev.endDate,
+      }));
       return;
     }
     setInfo((prev) => ({ ...prev, [name]: value }));
@@ -1769,20 +1774,7 @@ export default function WorkMeasurementApp() {
 
         {/* Form */}
         <div className="grid-three gi-grid" style={{ marginTop: 8 }}>
-          {/* Multi-day toggle ABOVE Start Date */}
-          <div className="gi-field">
-            <label className="switch">
-              <input
-                type="checkbox"
-                name="multiDay"
-                checked={info.multiDay}
-                onChange={handleInfoChange}
-              />
-              <span>Multi-day study</span>
-            </label>
-          </div>
-
-          {/* Start Date */}
+          {/* Start Date (left) */}
           <div className="gi-field">
             <label className="stack">
               <span>Start Date</span>
@@ -1795,21 +1787,32 @@ export default function WorkMeasurementApp() {
             </label>
           </div>
 
-          {/* End Date appears BELOW Start Date when multi-day is on */}
-          {info.multiDay && (
-            <div className="gi-field">
-              <label className="stack">
-                <span>End Date</span>
-                <input
-                  type="date"
-                  name="endDate"
-                  value={info.endDate}
-                  min={info.date}
-                  onChange={handleInfoChange}
-                />
-              </label>
-            </div>
-          )}
+          {/* End Date (center) — always visible */}
+          <div className="gi-field">
+            <label className="stack">
+              <span>End Date</span>
+              <input
+                type="date"
+                name="endDate"
+                value={info.endDate}
+                min={info.date}
+                onChange={handleInfoChange}
+              />
+            </label>
+          </div>
+
+          {/* Multi‑day Study (right) */}
+          <div className="gi-field">
+            <label className="switch">
+              <input
+                type="checkbox"
+                name="multiDay"
+                checked={info.multiDay}
+                onChange={handleInfoChange}
+              />
+              <span>Multi-day study</span>
+            </label>
+          </div>
 
           {/* Observer */}
           <div className="gi-field">
