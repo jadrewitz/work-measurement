@@ -611,6 +611,46 @@ function ReasonModal({
 }
 
 /* ---------- App ---------- */
+function ConfirmModal({ open, title, body, confirmText = "Yes", cancelText = "Cancel", onCancel, onConfirm }: {
+  open: boolean;
+  title: string;
+  body: string;
+  confirmText?: string;
+  cancelText?: string;
+  onCancel: () => void;
+  onConfirm: () => void;
+}) {
+  if (!open) return null;
+  return (
+    <div className="modal-backdrop" onClick={onCancel}>
+      <div className="modal" onClick={(e) => e.stopPropagation()}>
+        <header><h3>{title}</h3></header>
+        <div className="body"><p style={{ margin: 0 }}>{body}</p></div>
+        <footer>
+          <button className="btn" onClick={onCancel}>{cancelText}</button>
+          <button className="btn red" onClick={onConfirm}>{confirmText}</button>
+        </footer>
+      </div>
+    </div>
+  );
+}
+
+function UndoToast({ open, text, onUndo, onClose }: { open: boolean; text: string; onUndo?: () => void; onClose: () => void }) {
+  if (!open) return null;
+  return (
+    <div style={{
+      position: "fixed", right: 16, bottom: 16, zIndex: 1000,
+      background: "#111a34", color: "#fff", border: "1px solid #2a3560",
+      borderRadius: 10, padding: "10px 12px", boxShadow: "0 6px 24px rgba(0,0,0,.35)",
+      display: "flex", gap: 8, alignItems: "center"
+    }}>
+      <span>{text}</span>
+      {onUndo && <button className="btn yellow" onClick={onUndo}>Undo</button>}
+      <button className="btn ghost" onClick={onClose}>Dismiss</button>
+    </div>
+  );
+}
+
 export default function WorkMeasurementApp() {
   const loaded = safeLoad();
   const [info, setInfo] = useState<AppInfo>(
@@ -694,6 +734,17 @@ export default function WorkMeasurementApp() {
   const [note, setNote] = useState("");
   // --- AI summary loading state ---
   const [aiBusy, setAiBusy] = useState(false);
+
+  const [confirmBox, setConfirmBox] = useState<{
+    open: boolean; title: string; body: string; confirmText?: string; cancelText?: string; onConfirm: () => void;
+  } | null>(null);
+
+  const [toast, setToast] = useState<{ open: boolean; text: string; undo?: () => void } | null>(null);
+
+  function showToast(text: string, undo?: () => void) {
+    setToast({ open: true, text, undo });
+    setTimeout(() => setToast((t) => (t ? { ...t, open: false } : t)), 6000);
+  }
 
   // “Other…” reveal controls for General Info
   const [typeOther, setTypeOther] = useState("");
@@ -854,12 +905,24 @@ export default function WorkMeasurementApp() {
   };
 
   const deleteEmployee = (id: number) => {
-    const emp = employees.find((e) => e.id === id);
-    if (!emp) return;
-    if (!confirm(`Remove ${emp.name}? Their times will be removed from totals.`)) return;
-    appendTimeLog({ employeeId: emp.id, employeeName: emp.name, event: "deleted" });
-    setEmployees((prev) => prev.filter((e) => e.id !== id));
-  };
+  const emp = employees.find((e) => e.id === id);
+  if (!emp) return;
+  const prevEmployees = employees;
+
+  setConfirmBox({
+    open: true,
+    title: "Remove employee",
+    body: `Remove ${emp.name}? Their times will be removed from totals.`,
+    confirmText: "Remove",
+    cancelText: "Cancel",
+    onConfirm: () => {
+      appendTimeLog({ employeeId: emp.id, employeeName: emp.name, event: "deleted" });
+      setEmployees((prev) => prev.filter((e) => e.id !== id));
+      setConfirmBox(null);
+      showToast(`Removed ${emp.name}`, () => setEmployees(prevEmployees));
+    }
+  });
+};
 
   const startTimer = (id: number) => {
     const emp = employees.find((e) => e.id === id);
@@ -967,48 +1030,103 @@ export default function WorkMeasurementApp() {
     setNote("");
   };
   const deleteTaskNote = (id: number) => {
-    if (!confirm("Delete this note?")) return;
-    setTaskLog((p) => p.filter((n) => n.id !== id));
-  };
+  const prev = taskLog;
+  setConfirmBox({
+    open: true,
+    title: "Delete note",
+    body: "Delete this note?",
+    confirmText: "Delete",
+    cancelText: "Cancel",
+    onConfirm: () => {
+      setTaskLog((p) => p.filter((n) => n.id !== id));
+      setConfirmBox(null);
+      showToast("Note deleted", () => setTaskLog(prev));
+    }
+  });
+};
 
   const deleteTimeLogEntry = (id: number) => {
     const entry = timeLog.find((t) => t.id === id);
     if (!entry) return;
-    if (!confirm(`Delete this time entry for ${entry.employeeName}?`)) return;
-    setTimeLog((prev) => prev.filter((t) => t.id !== id));
+    const prev = timeLog;
+
+    setConfirmBox({
+      open: true,
+      title: "Delete time entry",
+      body: `Delete this time entry for ${entry.employeeName}?`,
+      confirmText: "Delete",
+      cancelText: "Cancel",
+      onConfirm: () => {
+        setTimeLog((p) => p.filter((t) => t.id !== id));
+        setConfirmBox(null);
+        showToast("Time entry deleted", () => setTimeLog(prev));
+      }
+    });
   };
+
   const clearTimeLog = () => {
-    if (!timeLog.length) return;
-    if (!confirm("Delete ALL time log entries? This cannot be undone.")) return;
-    setTimeLog([]);
+    const prev = timeLog;
+
+    setConfirmBox({
+      open: true,
+      title: "Delete all time entries",
+      body: "Delete ALL time log entries? This cannot be undone.",
+      confirmText: "Delete all",
+      cancelText: "Cancel",
+      onConfirm: () => {
+        setTimeLog([]);
+        setConfirmBox(null);
+        showToast("All time log entries deleted", () => setTimeLog(prev));
+      }
+    });
   };
 
   const clearSaved = () => {
-    if (!confirm("Clear all saved data? This cannot be undone.")) return;
-    try {
-      localStorage.removeItem(STORAGE_KEY);
-    } catch {}
-    setInfo({
-      date: todayISO(),
-      endDate: "",
-      multiDay: false,
-      location: "",
-      procedure: "",
-      workOrder: "",
-      task: "",
-      type: "Routine",
-      workType: "Inspection",
-      assetId: "",
-      station: "",
-      supervisor: "",
-      estimatedTime: "",
-      observer: localStorage.getItem(LAST_OBSERVER_KEY) || "",
-      summary: "",
-    });
-    setEmployees([]);
-    setTaskLog([]);
-    setTimeLog([]);
-  };
+  const snapshot = { info, employees, taskLog, timeLog, photos };
+
+  setConfirmBox({
+    open: true,
+    title: "Clear Saved Data",
+    body: "This wipes everything stored in this browser for this app. You can Undo right after if clicked by mistake.",
+    confirmText: "Clear all",
+    cancelText: "Cancel",
+    onConfirm: () => {
+      try { localStorage.removeItem(STORAGE_KEY); } catch {}
+      setInfo({
+        date: todayISO(),
+        endDate: "",
+        multiDay: false,
+        location: "",
+        procedure: "",
+        workOrder: "",
+        task: "",
+        type: "Routine",
+        workType: "Inspection",
+        assetId: "",
+        station: "",
+        supervisor: "",
+        estimatedTime: "",
+        observer: localStorage.getItem(LAST_OBSERVER_KEY) || "",
+        summary: "",
+        observationScope: "Full",
+      });
+      setEmployees([]);
+      setTaskLog([]);
+      setTimeLog([]);
+      setPhotos([]);
+      setConfirmBox(null);
+
+      showToast("All data cleared", () => {
+        setInfo(snapshot.info);
+        setEmployees(snapshot.employees);
+        setTaskLog(snapshot.taskLog);
+        setTimeLog(snapshot.timeLog);
+        setPhotos(snapshot.photos);
+        try { localStorage.setItem(STORAGE_KEY, JSON.stringify(snapshot)); } catch {}
+      });
+    }
+  });
+};
 
   /* ---------- Totals / KPIs ---------- */
   const totalActive = useMemo(
@@ -2118,6 +2236,28 @@ export default function WorkMeasurementApp() {
       </section>
 
       {/* PHOTOS SECTION MOVED HERE */}
+      {/* Modals */}
+      <ReasonModal
+        open={!!pendingReason}
+        action={pendingReason?.action || "pause"}
+        onCancel={cancelReason}
+        onConfirm={confirmReason}
+      />
+      <ConfirmModal
+        open={!!confirmBox}
+        title={confirmBox?.title || ""}
+        body={confirmBox?.body || ""}
+        confirmText={confirmBox?.confirmText || "Yes"}
+        cancelText={confirmBox?.cancelText || "Cancel"}
+        onCancel={() => setConfirmBox(null)}
+        onConfirm={() => confirmBox?.onConfirm?.()}
+      />
+      <UndoToast
+        open={!!toast?.open}
+        text={toast?.text || ""}
+        onUndo={toast?.undo}
+        onClose={() => setToast(null)}
+      />
       <section className="section card">
         <h2>Photos <span className="meta">({photos.length}/5)</span></h2>
         <div style={{ display: "flex", gap: 8, alignItems: "center", marginTop: 8, flexWrap: "wrap" }}>
@@ -2199,7 +2339,11 @@ export default function WorkMeasurementApp() {
             >
               {sortTimeNewestFirst ? "▼ Newest first" : "▲ Oldest first"}
             </button>
-            <button className="btn ghost" onClick={clearTimeLog} title="Delete all time log entries">
+            <button
+              className="btn ghost"
+              onClick={clearTimeLog}
+              title="Delete all time log entries"
+            >
               Delete All
             </button>
           </div>
