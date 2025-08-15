@@ -12,7 +12,7 @@ function trimJSON(obj, maxChars = 12000) {
 
 module.exports = async function (context, req) {
   try {
-    const key = process.env.OPENAI_API_KEY;
+    const key = process.env.OPENAI_API_KEY || process.env.OPENAI_KEY;
     if (!key) {
       context.res = {
         status: 500,
