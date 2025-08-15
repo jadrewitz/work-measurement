@@ -128,25 +128,50 @@ input[type="text"], input[type="date"]{
   border:1px solid #26345a; border-radius:var(--radius-sm);
   padding:10px 12px; outline:none;
 }
-/* iOS/iPadOS Safari date input normalization — keeps native picker */
+/* iOS/iPadOS Safari date input normalization — keeps native picker but hard-clamps height */
 input[type="date"]{
-  height:40px;             /* unify height with text inputs */
-  line-height:40px;        /* vertically center value */
+  height:40px !important;          /* unify height with text inputs */
+  line-height:40px !important;     /* vertically center value */
+  padding-block:0 !important;      /* prevent vertical expansion */
+  padding-inline:12px !important;  /* match text inputs */
+  box-sizing:border-box;
 }
 /* Tighten internal editable area so iPad doesn't expand the control */
 input[type="date"]::-webkit-date-and-time-value{
-  min-height:0;
-  padding:0;
+  min-height:0 !important;
+  padding:0 !important;
 }
-input[type="date"]::-webkit-datetime-edit{
-  padding:0 0 0 8px;       /* left padding so text isn’t flush */
+input[type="date"]::-webkit-datetime-edit,
+input[type="date"]::-webkit-datetime-edit-fields-wrapper,
+input[type="date"]::-webkit-datetime-edit-text,
+input[type="date"]::-webkit-datetime-edit-month-field,
+input[type="date"]::-webkit-datetime-edit-day-field,
+input[type="date"]::-webkit-datetime-edit-year-field{
+  padding:0 !important;
+  margin:0 !important;
+  line-height:40px !important;
 }
-/* Make sure the calendar icon remains visible/clickable */
+/* Keep the calendar icon visible/clickable and aligned */
 input[type="date"]::-webkit-calendar-picker-indicator{
-  padding:0 6px;
-  margin:0;
+  padding:0 6px !important;
+  margin:0 !important;
   opacity:.85;
   cursor:pointer;
+}
+/* Extra clamp for iOS/iPadOS Safari */
+@supports (-webkit-touch-callout: none){
+  input[type="date"]{
+    height:40px !important;
+    line-height:40px !important;
+    padding-block:0 !important;
+  }
+  input[type="date"]::-webkit-date-and-time-value{
+    min-height:0 !important;
+  }
+  input[type="date"]::-webkit-datetime-edit{
+    padding:0 0 0 8px !important; /* keep a little left inset */
+    line-height:40px !important;
+  }
 }
 input::placeholder{ color:#7284a7 }
 input:focus{ border-color:#4166ff; box-shadow:0 0 0 3px #4166ff33 }
