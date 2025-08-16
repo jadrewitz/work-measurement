@@ -732,6 +732,22 @@ export default function WorkMeasurementApp() {
 
   const [employeeName, setEmployeeName] = useState("");
   const [note, setNote] = useState("");
+
+  // --- Task Log editing state ---
+  const [editingEntry, setEditingEntry] = useState<{ id: number; at: number; text: string } | null>(null);
+  const startEditTaskNote = (entry: TaskEntry) => {
+    setEditingEntry({ id: entry.id, at: entry.at, text: entry.text });
+  };
+  const onEditTaskNoteChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    if (!editingEntry) return;
+    setEditingEntry({ ...editingEntry, text: e.target.value });
+  };
+  const saveTaskNoteEdit = () => {
+    if (!editingEntry) return;
+    setTaskLog(prev => prev.map(en => en.id === editingEntry.id ? { ...en, text: editingEntry.text } : en));
+    setEditingEntry(null);
+  };
+  const cancelTaskNoteEdit = () => setEditingEntry(null);
   // --- AI summary loading state ---
   const [aiBusy, setAiBusy] = useState(false);
 
@@ -2185,6 +2201,13 @@ export default function WorkMeasurementApp() {
               <span style={{ whiteSpace: "pre-wrap", flex: 1 }}>
                 {fmtStamp(n.at, info.multiDay)}: {n.text}
               </span>
+              <button
+                className="btn ghost"
+                onClick={() => startEditTaskNote(n)}
+                title="Edit note"
+              >
+                Edit
+              </button>
               <button className="btn ghost" onClick={() => deleteTaskNote(n.id)} title="Delete note">
                 Delete
               </button>
@@ -2192,6 +2215,25 @@ export default function WorkMeasurementApp() {
           ))}
           {sortedTaskLog.length === 0 && <li className="meta">(no notes)</li>}
         </ul>
+        {editingEntry && (
+          <div className="modal-backdrop" onClick={cancelTaskNoteEdit}>
+            <div className="modal" onClick={(e) => e.stopPropagation()}>
+              <header><h3>Edit Note</h3></header>
+              <div className="body">
+                <textarea
+                  rows={4}
+                  style={{ width: "100%", background: "#0b1228", color: "var(--ink)", border: "1px solid #26345a", borderRadius: 10, padding: 10 }}
+                  value={editingEntry.text}
+                  onChange={onEditTaskNoteChange}
+                />
+              </div>
+              <footer>
+                <button className="btn" onClick={cancelTaskNoteEdit}>Cancel</button>
+                <button className="btn blue" onClick={saveTaskNoteEdit}>Save</button>
+              </footer>
+            </div>
+          </div>
+        )}
       </section>
 
       <section className="section card">
@@ -2232,205 +2274,128 @@ export default function WorkMeasurementApp() {
             Clear
           </button>
           <span className="meta">This will call /api/summarize with your current data.</span>
+                  <span className="meta">
+            This calls your <code>/api/summarize</code> Azure Function and writes the result here.
+          </span>
         </div>
       </section>
 
-      {/* PHOTOS SECTION MOVED HERE */}
-      {/* Modals */}
-      <ReasonModal
-        open={!!pendingReason}
-        action={pendingReason?.action || "pause"}
-        onCancel={cancelReason}
-        onConfirm={confirmReason}
-      />
-      <ConfirmModal
-        open={!!confirmBox}
-        title={confirmBox?.title || ""}
-        body={confirmBox?.body || ""}
-        confirmText={confirmBox?.confirmText || "Yes"}
-        cancelText={confirmBox?.cancelText || "Cancel"}
-        onCancel={() => setConfirmBox(null)}
-        onConfirm={() => confirmBox?.onConfirm?.()}
-      />
-      <UndoToast
-        open={!!toast?.open}
-        text={toast?.text || ""}
-        onUndo={toast?.undo}
-        onClose={() => setToast(null)}
-      />
+      {/* Photos */}
       <section className="section card">
-        <h2>Photos <span className="meta">({photos.length}/5)</span></h2>
-        <div style={{ display: "flex", gap: 8, alignItems: "center", marginTop: 8, flexWrap: "wrap" }}>
-          <label className="btn blue" style={{ cursor: "pointer" }}>
-            Upload Photos
-            <input
-              type="file"
-              accept="image/*,image/heic,image/heif,.heic,.heif"
-              capture="environment"
-              multiple
-              onChange={(e) => handlePhotoFiles(e.target.files)}
-              style={{ display: "none" }}
-            />
-          </label>
-          <span className="meta">Images are resized and auto-rotated on upload.</span>
-        </div>
-
-        {photos.length > 0 && (
-          <ul className="card-list" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))", display: "grid" }}>
-            {photos.map((p) => (
-              <li key={p.id} className="emp" style={{ padding: 8, display: "grid", gap: 8 }}>
-                <div className="photo-thumb">
-                  <img
-                    src={p.dataUrl}
-                    alt={p.customName || p.name || "photo"}
-                    onDoubleClick={() => beginRenamePhoto(p)}
-                    title="Double‑click to rename"
-                  />
-                  <button
-                    type="button"
-                    className="photo-remove"
-                    aria-label="Remove photo"
-                    title="Remove photo"
-                    onClick={() => removePhoto(p.id)}
-                  >
-                    ×
-                  </button>
-                </div>
-                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                  {editingPhotoId === p.id ? (
+        <h2>Photos</h2>
+        <div className="photo-grid">
+          {photos.map(p => (
+            <div key={p.id} className="photo-thumb" data-src-head={p.customName || p.name || ""}>
+              <img src={p.dataUrl} alt={p.caption || p.customName || p.name || "Photo"} loading="eager" />
+              <button className="photo-remove" onClick={() => removePhoto(p.id)} title="Remove">×</button>
+              <div className="photo-caption" style={{ marginTop: 6 }}>
+                {editingPhotoId === p.id ? (
+                  <div style={{ display: "flex", gap: 6 }}>
                     <input
                       className="other-input"
-                      style={{ width: "100%" }}
                       value={tempPhotoName}
-                      onChange={(e) => setTempPhotoName(e.target.value)}
-                      autoFocus
-                      onBlur={confirmRenamePhoto}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") confirmRenamePhoto();
-                        if (e.key === "Escape") cancelRenamePhoto();
-                      }}
-                      placeholder="Set photo name"
+                      onChange={(e)=>setTempPhotoName(e.target.value)}
+                      placeholder="Filename"
+                      style={{ flex: 1 }}
                     />
-                  ) : (
-                    <span
-                      className="meta"
-                      style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", cursor: "text" }}
-                      onClick={() => beginRenamePhoto(p)}
-                      title="Click to rename"
-                    >
-                      {p.customName || p.name || "photo"}
-                    </span>
-                  )}
-                </div>
-              </li>
-            ))}
-          </ul>
-        )}
+                    <button className="btn blue" onClick={confirmRenamePhoto}>Save</button>
+                    <button className="btn ghost" onClick={cancelRenamePhoto}>Cancel</button>
+                  </div>
+                ) : (
+                  <button className="btn ghost" onClick={()=>beginRenamePhoto(p)}>
+                    {(p.customName || p.name || "photo.jpg")}
+                  </button>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+        <div style={{ marginTop: 10 }}>
+          <input type="file" multiple accept="image/*,.heic,.heif" onChange={(e)=>handlePhotoFiles(e.target.files)} />
+        </div>
       </section>
 
+      {/* Time Log */}
       <section className="section card">
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <h2>Time Log</h2>
-          <div style={{ display: "flex", gap: 8 }}>
-            <button
-              className="sort-toggle"
-              onClick={() => setSortTimeNewestFirst((v) => !v)}
-              title={sortTimeNewestFirst ? "Newest → Oldest" : "Oldest → Newest"}
-            >
-              {sortTimeNewestFirst ? "▼ Newest first" : "▲ Oldest first"}
-            </button>
-            <button
-              className="btn ghost"
-              onClick={clearTimeLog}
-              title="Delete all time log entries"
-            >
+        <h2>Time Log</h2>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+          <div className="meta">{sortedTimeLog.length} entries</div>
+          {sortedTimeLog.length > 0 && (
+            <button className="btn ghost" onClick={clearTimeLog} title="Delete all time log entries">
               Delete All
             </button>
-          </div>
+          )}
         </div>
-
-        <div className="table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th>When</th>
-                <th>Employee</th>
-                <th>Event</th>
-                <th>Reason</th>
-                <th>Comment</th>
-                <th></th>
+        <table style={{ width: "100%", borderCollapse: "collapse" }}>
+          <thead>
+            <tr>
+              <th>When</th>
+              <th>Employee</th>
+              <th>Event</th>
+              <th>Reason</th>
+              <th>Comment</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            {sortedTimeLog.map(t => (
+              <tr key={t.id}>
+                <td className="mono">{fmtStamp(t.at, info.multiDay)}</td>
+                <td>{t.employeeName}</td>
+                <td className="cap">{t.event}</td>
+                <td>{t.reasonCode || ""}</td>
+                <td>{t.comment || ""}</td>
+                <td>
+                  <button className="btn ghost" onClick={() => deleteTimeLogEntry(t.id)}>
+                    Delete
+                  </button>
+                </td>
               </tr>
-            </thead>
-            <tbody>
-              {sortedTimeLog.map((row) => (
-                <tr key={row.id}>
-                  <td className="mono">{fmtStamp(row.at, info.multiDay)}</td>
-                  <td>{row.employeeName}</td>
-                  <td className="cap">{row.event}</td>
-                  <td>{row.reasonCode || ""}</td>
-                  <td style={{ whiteSpace: "pre-wrap" }}>{row.comment || ""}</td>
-                  <td>
-                    <button className="btn ghost" onClick={() => deleteTimeLogEntry(row.id)} title="Delete this entry">
-                      Delete
-                    </button>
-                  </td>
-                </tr>
-              ))}
-              {sortedTimeLog.length === 0 && (
-                <tr>
-                  <td colSpan={6} className="meta">
-                    No time log entries.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-
-        {/* Daily breakdown table */}
-        {Object.keys(dailyBreakdown).length > 0 && (
-          <div style={{ marginTop: 12 }}>
-            <h3 style={{ margin: "6px 0 8px" }}>Daily Breakdown</h3>
-            <div className="table-wrap">
-              <table>
-                <thead>
-                  <tr>
-                    <th>Date</th>
-                    <th>Actual</th>
-                    <th>Touch</th>
-                    <th>Idle</th>
-                    <th>Utilization</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {Object.entries(dailyBreakdown)
-                    .sort(([a], [b]) => a.localeCompare(b))
-                    .map(([date, v]) => (
-                      <tr key={date}>
-                        <td className="mono">{date}</td>
-                        <td className="mono">{msToHMS(v.actualMs)}</td>
-                        <td className="mono">{msToHMS(v.touchMs)}</td>
-                        <td className="mono">{msToHMS(v.idleMs)}</td>
-                        <td className="mono">{v.actualMs ? ((v.touchMs / v.actualMs) * 100).toFixed(1) : "0.0"}%</td>
-                      </tr>
-                    ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        )}
-
-        <p className="footer-hint">Tip: Export HTML and “Save as PDF” if Safari blocks direct print.</p>
+            ))}
+            {sortedTimeLog.length === 0 && (
+              <tr>
+                <td colSpan={6} className="meta">(no entries)</td>
+              </tr>
+            )}
+          </tbody>
+        </table>
       </section>
 
+      <p className="footer-hint">
+        Tip: Export HTML and “Save as PDF” if Safari blocks direct PDF downloads.
+      </p>
 
-      <HelpModal open={showHelp} onClose={() => setShowHelp(false)} />
-      <ReasonModal
-        open={!!pendingReason}
-        action={pendingReason?.action ?? "pause"}
-        onCancel={cancelReason}
-        onConfirm={confirmReason}
-      />
+      {pendingReason && (
+        <ReasonModal
+          open={!!pendingReason}
+          action={pendingReason.action}
+          onCancel={cancelReason}
+          onConfirm={confirmReason}
+        />
+      )}
+
+      {confirmBox && (
+        <ConfirmModal
+          open={confirmBox.open}
+          title={confirmBox.title}
+          body={confirmBox.body}
+          confirmText={confirmBox.confirmText}
+          cancelText={confirmBox.cancelText}
+          onCancel={() => setConfirmBox(null)}
+          onConfirm={confirmBox.onConfirm}
+        />
+      )}
+
+      {toast && (
+        <UndoToast
+          open={toast.open}
+          text={toast.text}
+          onUndo={toast.undo}
+          onClose={() => setToast(null)}
+        />
+      )}
+
+      {showHelp && <HelpModal open={showHelp} onClose={() => setShowHelp(false)} />}
     </div>
   );
 }
