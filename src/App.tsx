@@ -747,6 +747,39 @@ export default function WorkMeasurementApp() {
     setTaskLog(prev => prev.map(en => en.id === editingEntry.id ? { ...en, text: editingEntry.text } : en));
     setEditingEntry(null);
   };
+  // --- Time Log editing state ---
+const [editingTime, setEditingTime] =
+  useState<{ id: number; reason: string; comment: string } | null>(null);
+
+function startEditTimeEntry(t: TimeLogEntry) {
+  setEditingTime({
+    id: t.id,
+    reason: t.reasonCode || "",
+    comment: t.comment || "",
+  });
+}
+function onEditTimeChange(field: "reason" | "comment", value: string) {
+  if (!editingTime) return;
+  setEditingTime({ ...editingTime, [field]: value });
+}
+function saveTimeEdit() {
+  if (!editingTime) return;
+  setTimeLog(prev =>
+    prev.map(t =>
+      t.id === editingTime.id
+        ? {
+            ...t,
+            reasonCode: editingTime.reason.trim(),
+            comment: editingTime.comment.trim(),
+          }
+        : t
+    )
+  );
+  setEditingTime(null);
+}
+function cancelTimeEdit() {
+  setEditingTime(null);
+}
   const cancelTaskNoteEdit = () => setEditingEntry(null);
   // --- AI summary loading state ---
   const [aiBusy, setAiBusy] = useState(false);
@@ -768,7 +801,7 @@ export default function WorkMeasurementApp() {
 
   // Sorting toggles
   const [sortNewestFirst, setSortNewestFirst] = useState(true);
-  const [sortTimeNewestFirst, setSortTimeNewestFirst] = useState(true);
+  const [sortTimeNewestFirst] = useState(true);
 
   // Help + reason modal state
   const [showHelp, setShowHelp] = useState(false);
@@ -2346,7 +2379,19 @@ export default function WorkMeasurementApp() {
                 <td>{t.reasonCode || ""}</td>
                 <td>{t.comment || ""}</td>
                 <td>
-                  <button className="btn ghost" onClick={() => deleteTimeLogEntry(t.id)}>
+                  <button
+                    className="btn ghost"
+                    onClick={() => startEditTimeEntry(t)}
+                    title="Edit reason/comment"
+                  >
+                    Edit
+                  </button>
+                  <button
+                    className="btn ghost"
+                    onClick={() => deleteTimeLogEntry(t.id)}
+                    title="Delete entry"
+                    style={{ marginLeft: 6 }}
+                  >
                     Delete
                   </button>
                 </td>
@@ -2359,6 +2404,43 @@ export default function WorkMeasurementApp() {
             )}
           </tbody>
         </table>
+        {editingTime && (
+          <div className="modal-backdrop" onClick={cancelTimeEdit}>
+            <div className="modal" onClick={(e) => e.stopPropagation()}>
+              <header><h3>Edit Time Entry</h3></header>
+              <div className="body">
+                <h4>Reason code</h4>
+                <input
+                  type="text"
+                  className="other-input"
+                  style={{ width: "100%" }}
+                  value={editingTime.reason}
+                  onChange={(e) => onEditTimeChange("reason", e.target.value)}
+                  placeholder="e.g., Waiting on parts"
+                />
+                <h4 style={{ marginTop: 10 }}>Comment (optional)</h4>
+                <textarea
+                  rows={3}
+                  style={{
+                    width: "100%",
+                    background: "#0b1228",
+                    color: "var(--ink)",
+                    border: "1px solid #26345a",
+                    borderRadius: 10,
+                    padding: 10
+                  }}
+                  value={editingTime.comment}
+                  onChange={(e) => onEditTimeChange("comment", e.target.value)}
+                  placeholder="Add more detail…"
+                />
+              </div>
+              <footer>
+                <button className="btn" onClick={cancelTimeEdit}>Cancel</button>
+                <button className="btn blue" onClick={saveTimeEdit}>Save</button>
+              </footer>
+            </div>
+          </div>
+        )}
       </section>
 
       <p className="footer-hint">
