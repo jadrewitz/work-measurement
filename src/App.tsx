@@ -2326,10 +2326,6 @@ function cancelTimeEdit() {
           >
             Clear
           </button>
-          <span className="meta">This will call /api/summarize with your current data.</span>
-                  <span className="meta">
-            This calls your <code>/api/summarize</code> Azure Function and writes the result here.
-          </span>
         </div>
       </section>
 
