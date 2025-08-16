@@ -636,17 +636,37 @@ function ConfirmModal({ open, title, body, confirmText = "Yes", cancelText = "Ca
 }
 
 function UndoToast({ open, text, onUndo, onClose }: { open: boolean; text: string; onUndo?: () => void; onClose: () => void }) {
+  // Use theme from outer scope if available, else fallback to dark
+  // We'll use a prop if passed, but here, access theme via a context or prop if available
+  // For this app, we can access theme via a variable in parent component
+  // So we will forward isDarkMode as a prop in usage below
+  // For now, let's assume we can access window.document.documentElement.dataset.theme
+  let isDarkMode = false;
+  try {
+    isDarkMode = document?.documentElement?.dataset?.theme === "dark";
+  } catch {}
   if (!open) return null;
   return (
     <div style={{
       position: "fixed", right: 16, bottom: 16, zIndex: 1000,
-      background: "#111a34", color: "#fff", border: "1px solid #2a3560",
-      borderRadius: 10, padding: "10px 12px", boxShadow: "0 6px 24px rgba(0,0,0,.35)",
+      background: isDarkMode ? "#111a34" : "#f5f5f5",
+      color: isDarkMode ? "#fff" : "#000",
+      border: isDarkMode ? "1px solid #2a3560" : "1px solid #ccc",
+      borderRadius: 10, padding: "10px 12px", boxShadow: "0 6px 24px rgba(0,0,0,.15)",
       display: "flex", gap: 8, alignItems: "center"
     }}>
       <span>{text}</span>
       {onUndo && <button className="btn yellow" onClick={onUndo}>Undo</button>}
-      <button className="btn ghost" onClick={onClose}>Dismiss</button>
+      <button
+        className="btn ghost"
+        style={{
+          backgroundColor: isDarkMode ? "var(--dark-bg-color)" : "#f5f5f5",
+          color: isDarkMode ? "#fff" : "#000"
+        }}
+        onClick={onClose}
+      >
+        Dismiss
+      </button>
     </div>
   );
 }
