@@ -574,8 +574,15 @@ html[data-theme="light"] body{
 
 /* Cards and panels */
 html[data-theme="light"] .card{
-  background:linear-gradient(180deg,#ffffff,#f8fafc 60%,#ffffff);
-  border-color:#e5e7eb;
+  /* Light blue card for general sections in light mode */
+  background:linear-gradient(180deg,#eef6ff,#ffffff 70%,#ffffff);
+  border-color:#bfdbfe; /* light blue border */
+}
+/* Light theme: KPI section gets a soft green card */
+html[data-theme="light"] .kpi-strip{
+  background:linear-gradient(180deg,#e8f8ee,#ffffff 70%,#ffffff);
+  border:1px solid #86efac;  /* mint green border */
+  border-radius: var(--radius);
 }
 html[data-theme="light"] .emp{
   background:linear-gradient(180deg,#ffffff,#f8fafc);
@@ -870,4 +877,118 @@ html[data-theme="light"] textarea[name="summary"]{
   background:#ffffff !important;
   color:#0b1220 !important;
   border-color:#cbd5e1 !important;
+}
+
+/* ---- Employees card emphasis ---- */
+.emp-card{
+  /* dark-mode baseline */
+  background: linear-gradient(180deg, #350601, #1a0f17 60%, #160c13);
+  border: 1px solid #e7e6d3;
+}
+.emp-card h2{ margin-top: 0; }
+
+html[data-theme="light"] .emp-card{
+  /* soft yellow gradient to match the light blue card gradient style */
+  background: linear-gradient(180deg, #fff7cc, #fff1a3 70%, #ffffff);
+  border: 1px solid #facc15; /* bright amber outline */
+}
+
+/* Light mode: normalize inline-styled mini charts (Utilization, Touch vs Idle) */
+/* These cards sometimes come with inline dark backgrounds. Force light look. */
+html[data-theme="light"] .chart-card{
+  background: linear-gradient(180deg,#ffffff,#f8fafc);
+  border-color: #e5e7eb;
+  color:#0b1220;
+}
+html[data-theme="light"] .section.card .chart-card,
+html[data-theme="light"] .kpi-strip .chart-card{
+  background: linear-gradient(180deg,#ffffff,#f8fafc);
+  border-color: #e5e7eb;
+  color:#0b1220;
+}
+/* Outer wrappers that have inline dark backgrounds */
+html[data-theme="light"] .section.card .chart-card[style*="background"],
+html[data-theme="light"] .section.card div[style*="background: #0f1736"],
+html[data-theme="light"] .section.card div[style*="background: #0e142d"],
+html[data-theme="light"] .section.card div[style*="background: #111a34"],
+html[data-theme="light"] .section.card div[style*="background: #0b1228"],
+html[data-theme="light"] .kpi-strip div[style*="background: #0f1736"],
+html[data-theme="light"] .kpi-strip div[style*="background: #0e142d"],
+html[data-theme="light"] .kpi-strip div[style*="background: #111a34"],
+html[data-theme="light"] .kpi-strip div[style*="background: #0b1228"]{
+  background:#ffffff !important;
+  border-color:#cbd5e1 !important;
+}
+/* Rails of the progress visuals (long rounded bars) */
+html[data-theme="light"] .chart-card div[style*="height: 14px"],
+html[data-theme="light"] .kpi-strip div[style*="height: 14px"]{
+  background:#e5e7eb !important;   /* light slate track */
+  border-color:#e5e7eb !important;
+}
+/* Labels/legends inside these cards */
+html[data-theme="light"] .chart-card div[style*="font-size: 12px"],
+html[data-theme="light"] .chart-card span{
+  color:#0b1220 !important;
+}
+
+/* Ensure the legend text stays readable (already handled globally, but reinforce here) */
+html[data-theme="light"] .section.card div[style*="margin-bottom: 6px"][style*="font-size: 12px"],
+html[data-theme="light"] .kpi-strip div[style*="margin-bottom: 6px"][style*="font-size: 12px"]{
+  color:#0b1220 !important;
+}
+/* ---- Nuclear light-mode fix for inline dark backgrounds on mini charts ---- */
+/* Some chart wrappers render inline dark backgrounds in Safari/iPad.
+   These selectors force them to light surfaces regardless of inline styles. */
+html[data-theme="light"] .section.card [style*="background:#0f1736"],
+html[data-theme="light"] .section.card [style*="background:#0e142d"],
+html[data-theme="light"] .section.card [style*="background:#111a34"],
+html[data-theme="light"] .section.card [style*="background:#0b1228"],
+html[data-theme="light"] .section.card [style*="background: #0f1736"],
+html[data-theme="light"] .section.card [style*="background: #0e142d"],
+html[data-theme="light"] .section.card [style*="background: #111a34"],
+html[data-theme="light"] .section.card [style*="background: #0b1228"],
+html[data-theme="light"] .section.card [style*="background-color:#0f1736"],
+html[data-theme="light"] .section.card [style*="background-color:#0e142d"],
+html[data-theme="light"] .section.card [style*="background-color:#111a34"],
+html[data-theme="light"] .section.card [style*="background-color:#0b1228"],
+html[data-theme="light"] .kpi-strip [style*="background:#0f1736"],
+html[data-theme="light"] .kpi-strip [style*="background:#0e142d"],
+html[data-theme="light"] .kpi-strip [style*="background:#111a34"],
+html[data-theme="light"] .kpi-strip [style*="background:#0b1228"],
+html[data-theme="light"] .kpi-strip [style*="background: #0f1736"],
+html[data-theme="light"] .kpi-strip [style*="background: #0e142d"],
+html[data-theme="light"] .kpi-strip [style*="background: #111a34"],
+html[data-theme="light"] .kpi-strip [style*="background: #0b1228"],
+html[data-theme="light"] .kpi-strip [style*="background-color:#0f1736"],
+html[data-theme="light"] .kpi-strip [style*="background-color:#0e142d"],
+html[data-theme="light"] .kpi-strip [style*="background-color:#111a34"],
+html[data-theme="light"] .kpi-strip [style*="background-color:#0b1228"]{
+  background:#ffffff !important;
+  border-color:#cbd5e1 !important;
+  color:#0b1220 !important;
+}
+/* Also force all descendants (labels, numbers) to dark text */
+html[data-theme="light"] .section.card [style*="background:#0f1736"] *,
+html[data-theme="light"] .section.card [style*="background:#0e142d"] *,
+html[data-theme="light"] .section.card [style*="background:#111a34"] *,
+html[data-theme="light"] .section.card [style*="background:#0b1228"] *,
+html[data-theme="light"] .section.card [style*="background: #0f1736"] *,
+html[data-theme="light"] .section.card [style*="background: #0e142d"] *,
+html[data-theme="light"] .section.card [style*="background: #111a34"] *,
+html[data-theme="light"] .section.card [style*="background: #0b1228"] *,
+html[data-theme="light"] .kpi-strip [style*="background:#0f1736"] *,
+html[data-theme="light"] .kpi-strip [style*="background:#0e142d"] *,
+html[data-theme="light"] .kpi-strip [style*="background:#111a34"] *,
+html[data-theme="light"] .kpi-strip [style*="background:#0b1228"] *,
+html[data-theme="light"] .kpi-strip [style*="background: #0f1736"] *,
+html[data-theme="light"] .kpi-strip [style*="background: #0e142d"] *,
+html[data-theme="light"] .kpi-strip [style*="background: #111a34"] *,
+html[data-theme="light"] .kpi-strip [style*="background: #0b1228"] *{
+  color:#0b1220 !important;
+}
+/* Rails (progress tracks) – keep them light */
+html[data-theme="light"] .section.card [style*="height: 14px"],
+html[data-theme="light"] .kpi-strip [style*="height: 14px"]{
+  background:#e5e7eb !important;
+  border-color:#e5e7eb !important;
 }

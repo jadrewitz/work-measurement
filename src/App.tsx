@@ -407,38 +407,78 @@ function safeSave(state: AppState) {
 }
 
 /* ---------- Visuals (no external libs) ---------- */
-function ProgressBar({ value }: { value: number }) {
+function ProgressBar({
+  value,
+  theme,
+}: {
+  value: number;
+  theme?: ThemeMode;
+}) {
   const pct = Math.max(0, Math.min(100, value));
+  // Determine light/dark
+  let isLight: boolean;
+  if (theme) {
+    isLight = theme === "light";
+  } else if (typeof document !== "undefined" && document.documentElement?.dataset?.theme) {
+    isLight = document.documentElement.dataset.theme === "light";
+  } else {
+    isLight = false;
+  }
+  // Colors
+  const panelBg = isLight ? "#f6f9ff" : "#111a34";
+  const border = isLight ? "1px solid #d6e0ff" : "1px solid #26345a";
+  const labelColor = isLight ? "#0b1a33" : "#aabcdf";
+  const trackBg = isLight ? "#e9eef6" : "#0b1228";
   return (
-    <div style={{ background: "#111a34", border: "1px solid #26345a", borderRadius: 12, padding: 6 }}>
-      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6, fontSize: 12, color: "#aabcdf" }}>
+    <div style={{ background: panelBg, border, borderRadius: 12, padding: 6 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6, fontSize: 12, color: labelColor }}>
         <span>Utilization</span>
         <span>{pct.toFixed(1)}%</span>
       </div>
-      <div style={{ height: 14, background: "#0b1228", borderRadius: 999, overflow: "hidden" }}>
+      <div style={{ height: 14, background: trackBg, borderRadius: 999, overflow: "hidden" }}>
         <div style={{ width: `${pct}%`, height: "100%", background: "linear-gradient(90deg,#2fe1a3,#64b5ff)" }} />
       </div>
     </div>
   );
 }
 
-function StackedBar({ touchMs, idleMs }: { touchMs: number; idleMs: number }) {
+function StackedBar({
+  touchMs,
+  idleMs,
+  theme,
+}: {
+  touchMs: number;
+  idleMs: number;
+  theme?: ThemeMode;
+}) {
   const total = Math.max(1, touchMs + idleMs);
   const touchPct = (touchMs / total) * 100;
   const idlePct = (idleMs / total) * 100;
+  let isLight: boolean;
+  if (theme) {
+    isLight = theme === "light";
+  } else if (typeof document !== "undefined" && document.documentElement?.dataset?.theme) {
+    isLight = document.documentElement.dataset.theme === "light";
+  } else {
+    isLight = false;
+  }
+  const panelBg = isLight ? "#f6f9ff" : "#111a34";
+  const border = isLight ? "1px solid #d6e0ff" : "1px solid #26345a";
+  const labelColor = isLight ? "#0b1a33" : "#aabcdf";
+  const trackBg = isLight ? "#e9eef6" : "#0b1228";
   return (
-    <div style={{ background: "#111a34", border: "1px solid #26345a", borderRadius: 12, padding: 6 }}>
-      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6, fontSize: 12, color: "#aabcdf" }}>
+    <div style={{ background: panelBg, border, borderRadius: 12, padding: 6 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6, fontSize: 12, color: labelColor }}>
         <span>Touch vs Idle</span>
         <span>
           {touchPct.toFixed(1)}% / {idlePct.toFixed(1)}%
         </span>
       </div>
-      <div style={{ height: 14, background: "#0b1228", borderRadius: 999, overflow: "hidden", display: "flex" }}>
+      <div style={{ height: 14, background: trackBg, borderRadius: 999, overflow: "hidden", display: "flex" }}>
         <div style={{ width: `${touchPct}%`, background: "#35c98e" }} />
         <div style={{ width: `${idlePct}%`, background: "#ffd166" }} />
       </div>
-      <div style={{ display: "flex", gap: 12, marginTop: 6, fontSize: 12, color: "#aabcdf" }}>
+      <div style={{ display: "flex", gap: 12, marginTop: 6, fontSize: 12, color: labelColor }}>
         <span>
           <span style={{ display: "inline-block", width: 10, height: 10, background: "#35c98e", borderRadius: 2, marginRight: 6 }} />
           Touch {msToHMS(touchMs)}
@@ -1737,8 +1777,8 @@ function cancelTimeEdit() {
 
         {/* Visuals */}
         <div style={{ display: "grid", gap: 12, gridTemplateColumns: "1fr 1fr", marginTop: 8 }}>
-          <ProgressBar value={utilization * 100} />
-          <StackedBar touchMs={totalActive} idleMs={totalIdle} />
+          <ProgressBar value={utilization * 100} theme={theme} />
+          <StackedBar touchMs={totalActive} idleMs={totalIdle} theme={theme} />
         </div>
 
         {/* Compact KPIs moved here */}
@@ -1770,8 +1810,8 @@ function cancelTimeEdit() {
         </div>
       </section>
 
-<section className="section">
-        <h2>Employees <span className="meta">(add each employee involved with the task)</span></h2>
+<section className="section card emp-card">
+  <h2>Employees <span className="meta">(add each employee involved with the task)</span></h2>
         <div className="grid-auto" style={{ marginTop: 8 }}>
           <div style={{ display: "flex", gap: 8 }}>
             <input
