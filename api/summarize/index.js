@@ -89,6 +89,19 @@ module.exports = async function (context, req) {
   const totalEmployees = Number.isFinite(metrics.totalEmployees) ? metrics.totalEmployees : (Array.isArray(employees) ? employees.length : 0);
   const totalSessions  = Number.isFinite(metrics.totalSessions)  ? metrics.totalSessions  : (Array.isArray(timeLog) ? timeLog.filter(t => t && t.event !== "deleted").length : 0);
 
+  // Hybrid approach: accept a local, fact-checked draft from the frontend.
+  // If absent, build a conservative draft here from metrics so the model only polishes wording.
+  const draft =
+    (typeof body.draft === "string" && body.draft.trim())
+      ? body.draft.trim()
+      : [
+          `Observed "${info?.task || "the task"}" at ${info?.location || "the specified location"}.`,
+          `Actual time ${actualHM}; Touch labor ${touchHM}; Idle ${idleHM}.`,
+          `Crew size ${totalEmployees} across ${totalSessions} session(s). Utilization ${utilizationPct}%, Crew-hours ${crewHours}, Idle Ratio ${idleRatioPct}%.`,
+          (info?.estimatedTime ? `Estimated time recorded as ${info.estimatedTime}.` : ``),
+          (info?.observationScope ? `Observation scope: ${info.observationScope}.` : ``)
+        ].filter(Boolean).join(" ");
+
   // Build a compact, reliable context (avoid huge logs).
   const recentNotes = (Array.isArray(taskLog) ? taskLog : []).slice(-12).map(n => n && n.text).filter(Boolean);
   const samplePhotos = (Array.isArray(photos) ? photos : []).slice(0, 5).map(p => ({
@@ -100,49 +113,51 @@ module.exports = async function (context, req) {
   const messages = [
     {
       role: "system",
-      content:
-        "You write concise, plain-English work-measurement summaries. NEVER mention seconds; ONLY use hours and minutes (e.g., 0h 3m, 18m, 2h 15m). Be neutral, factual, and readable to non-experts.",
+      content: [
+        "You are an editorial assistant. Your job is to POLISH a user-provided DRAFT summary without changing any facts.",
+        "RULES:",
+        "- DO NOT introduce or change numbers, percentages, or durations.",
+        "- Keep durations in hours/minutes only (e.g., 0h 3m, 18m, 2h 15m). Never show seconds.",
+        "- Improve clarity and flow for non-experts; neutral, professional tone.",
+        "- Add exactly TWO short, evidence-based insights at the end as bullet points.",
+        "- If any item is missing in the draft, do not invent it.",
+      ].join("\n"),
     },
     {
       role: "user",
       content: JSON.stringify(
         {
-          header: {
-            date: info?.date || "",
-            endDate: info?.multiDay ? (info?.endDate || "") : "",
-            location: info?.location || "",
-            procedure: info?.procedure || "",
-            workOrder: info?.workOrder || "",
-            task: info?.task || "",
-            type: info?.type || "",
-            workType: info?.workType || "",
-            assetId: info?.assetId || "",
-            station: info?.station || "",
-            supervisor: info?.supervisor || "",
-            observer: info?.observer || "",
-            estimatedTime: info?.estimatedTime || "",
-            observationScope: info?.observationScope || "Full",
+          facts: {
+            header: {
+              date: info?.date || "",
+              endDate: info?.multiDay ? (info?.endDate || "") : "",
+              location: info?.location || "",
+              procedure: info?.procedure || "",
+              workOrder: info?.workOrder || "",
+              task: info?.task || "",
+              type: info?.type || "",
+              workType: info?.workType || "",
+              assetId: info?.assetId || "",
+              station: info?.station || "",
+              supervisor: info?.supervisor || "",
+              observer: info?.observer || "",
+              estimatedTime: info?.estimatedTime || "",
+              observationScope: info?.observationScope || "Full",
+            },
+            metrics: {
+              actualHM,
+              touchHM,
+              idleHM,
+              utilizationPct,
+              crewHours,
+              idleRatioPct,
+              totalEmployees,
+              totalSessions,
+            },
+            notesSample: (Array.isArray(taskLog) ? taskLog : []).slice(-6).map(n => n && n.text).filter(Boolean),
           },
-          crew: {
-            totalEmployees,
-            employees: (Array.isArray(employees) ? employees : []).map(e => ({
-              name: e?.name || "",
-              role: e?.role || "",
-              skill: e?.skill || "",
-            })),
-          },
-          metrics: {
-            actualHM,
-            touchHM,
-            idleHM,
-            utilizationPct,
-            crewHours,
-            idleRatioPct,
-            totalSessions,
-          },
-          notes: recentNotes,
-          photos: samplePhotos,
-          operatorNotes: summaryText || "",
+          draft,
+          operatorNotes: summaryText || ""
         },
         null,
         2
@@ -150,16 +165,12 @@ module.exports = async function (context, req) {
     },
     {
       role: "system",
-      content:
-        [
-          "Write a concise 1–2 paragraph summary:",
-          "• First paragraph: What task, where, and overall timing: Actual, Touch, Idle (hours/minutes only).",
-          "• Second paragraph: Key observations (delays, roles, scope) and efficiency: utilization and crew-hours.",
-          "Rules:",
-          "- DO NOT use seconds; only hours/minutes.",
-          "- Be readable for someone unfamiliar with the task; no jargon.",
-          "- If estimatedTime is present, briefly compare expected vs actual.",
-        ].join("\n"),
+      content: [
+        "TASK:",
+        "1) Rewrite the DRAFT into 1–2 short paragraphs that read smoothly and remain faithful to the facts.",
+        "2) Append a final line 'Insights:' followed by exactly two bullet points that are strictly derived from the provided facts (e.g., utilization, crew-hours, scope, recent notes).",
+        "Do not add, remove, or alter numeric values or durations. No seconds.",
+      ].join("\n"),
     },
   ];
 
@@ -175,8 +186,8 @@ module.exports = async function (context, req) {
       body: JSON.stringify({
         model,
         messages,
-        temperature: 0.3,
-        max_tokens: 350,
+        temperature: 0.2,
+        max_tokens: 300,
       }),
     });
 
@@ -188,12 +199,13 @@ module.exports = async function (context, req) {
     summaryTextOut = data?.choices?.[0]?.message?.content?.trim() || "";
   } catch (err) {
     context.log.error("OpenAI call failed", err);
-    // Fallback templated summary using provided metrics
-    summaryTextOut =
+    // Prefer the locally fact-checked draft if available
+    summaryTextOut = draft || (
       `Observed task "${info?.task || ""}" at ${info?.location || "the specified location"}. ` +
       `Total Actual time ${actualHM}; Touch labor ${touchHM}; Idle ${idleHM}. ` +
       `Crew size ${totalEmployees} across ${totalSessions} session(s). ` +
-      `Utilization ${utilizationPct}% with ${crewHours} crew-hours and Idle Ratio ${idleRatioPct}%.`;
+      `Utilization ${utilizationPct}% with ${crewHours} crew-hours and Idle Ratio ${idleRatioPct}%.`
+    );
   }
 
   context.res = {
