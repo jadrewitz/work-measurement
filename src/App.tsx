@@ -148,6 +148,15 @@ function msToHMS(ms: number) {
   const ss = s % 60;
   return `${pad2(h)}:${pad2(m)}:${pad2(ss)}`;
 }
+
+function msToHM(ms: number) {
+  const mins = Math.round(Math.max(0, ms) / 60000); // round to nearest minute
+  const h = Math.floor(mins / 60);
+  const m = mins % 60;
+  if (h === 0) return `${m}m`;
+  if (m === 0) return `${h}h`;
+  return `${h}h ${m}m`;
+}
 function fmtStamp(at: number, withDate: boolean) {
   const d = new Date(at);
   return withDate ? `${d.toLocaleDateString()} ${d.toLocaleTimeString()}` : d.toLocaleTimeString();
@@ -1349,9 +1358,21 @@ function cancelTimeEdit() {
           at: t.at, employeeName: t.employeeName, event: t.event, reasonCode: t.reasonCode || "", comment: t.comment || ""
         })),
         kpis: {
-          actualClockHMS: msToHMS(actualClockMs),
-          touchHMS: msToHMS(totalActive),
-          idleHMS: msToHMS(totalIdle),
+          // raw milliseconds
+          actualMs: actualClockMs,
+          touchMs: totalActive,
+          idleMs: totalIdle,
+
+          // rounded minutes
+          actualMin: Math.round(Math.max(0, actualClockMs) / 60000),
+          touchMin: Math.round(Math.max(0, totalActive) / 60000),
+          idleMin: Math.round(Math.max(0, totalIdle) / 60000),
+
+          // friendly strings (no seconds)
+          actualHM: msToHM(actualClockMs),
+          touchHM: msToHM(totalActive),
+          idleHM: msToHM(totalIdle),
+
           utilizationPct: Number((utilization * 100).toFixed(1)),
           crewHours: Number(crewHours.toFixed(2)),
           idleRatioPct: Number((idleRatio * 100).toFixed(1)),
