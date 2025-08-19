@@ -1347,6 +1347,37 @@ function cancelTimeEdit() {
     try {
       setAiBusy(true);
 
+      // --- Build a local DRAFT summary (hybrid approach) ---
+      // Helper: top pause reasons (up to 2)
+      const pauseCounts = new Map<string, number>();
+      for (const t of sortedTimeLog) {
+        if (t.event === "pause" && t.reasonCode) {
+          const key = t.reasonCode.trim();
+          pauseCounts.set(key, (pauseCounts.get(key) || 0) + 1);
+        }
+      }
+      const topPauses = Array.from(pauseCounts.entries())
+        .sort((a,b) => b[1]-a[1])
+        .slice(0,2)
+        .map(([k,v]) => `${k}${v>1?` (x${v})`:""}`)
+        .join(", ");
+
+      const crewSize = employees.length;
+      const sessionCount = timeLog.filter(t=>t.event!=="deleted").length;
+
+      const draftLines: string[] = [];
+      draftLines.push(
+        `Observed "${info.task || "the task"}" at ${info.location || "the specified location"}.`);
+      draftLines.push(
+        `Actual ${msToHM(actualClockMs)}; Touch ${msToHM(totalActive)}; Idle ${msToHM(totalIdle)}.`);
+      draftLines.push(
+        `Crew size ${crewSize} across ${sessionCount} sessions. Utilization ${(utilization*100).toFixed(1)}%, Crew-hours ${crewHours.toFixed(2)}, Idle Ratio ${(idleRatio*100).toFixed(1)}%.`);
+      if (info.estimatedTime) draftLines.push(`Estimated time ${info.estimatedTime}.`);
+      if (info.observationScope) draftLines.push(`Observation scope: ${info.observationScope}.`);
+      if (topPauses) draftLines.push(`Most common pauses: ${topPauses}.`);
+
+      const draft = draftLines.join(" ");
+
       const payload = {
         info,
         employees: employees.map(e => ({
@@ -1378,7 +1409,8 @@ function cancelTimeEdit() {
           totalSessions:  timeLog.filter(t => t.event !== "deleted").length,
         },
         summaryText: info.summary || "",
-        photos: reportPhotos.map(p => ({ name: p.name || "", caption: p.caption || "" }))
+        photos: reportPhotos.map(p => ({ name: p.name || "", caption: p.caption || "" })),
+        draft,
       };
 
       const res = await fetch("/api/summarize", {
