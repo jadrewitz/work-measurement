@@ -1,185 +1,207 @@
-// Azure Functions (Node 18+)
-// GET  /api/summarize       -> health check JSON (no key required)
-// POST /api/summarize       -> generate summary using OpenAI (requires key)
+// Azure Functions (Node.js) — /api/summarize/index.js
+// Uses metrics provided by the frontend to avoid re-deriving times.
+// Ensures hours/minutes only (no seconds) in the narrative.
 
-const MODEL = process.env.OPENAI_MODEL || "gpt-4o-mini";
-const OPENAI_URL = "https://api.openai.com/v1/chat/completions";
+const DEFAULT_MODEL = process.env.OPENAI_MODEL || "gpt-4o-mini";
 
-// --- helpers ---------------------------------------------------------------
-const CORS = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
-  "Access-Control-Allow-Headers": "Content-Type,Authorization,X-OpenAI-Key,X-OpenAI-Model"
-};
+// Prefer env var key. Allow local dev override via request headers on localhost.
+function resolveApiKey(req) {
+  const envKey = process.env.OPENAI_API_KEY && String(process.env.OPENAI_API_KEY).trim();
+  const isLocal =
+    (req?.headers["origin"] && /localhost|127\.0\.0\.1/.test(String(req.headers["origin"]))) ||
+    (req?.headers["referer"] && /localhost|127\.0\.0\.1/.test(String(req.headers["referer"])));
 
-function cors(res) {
-  return { ...(res || {}), headers: { ...(res?.headers || {}), ...CORS } };
+  if (isLocal) {
+    const hdrAuth = req.headers["authorization"];
+    if (hdrAuth && /^bearer\s+/i.test(hdrAuth)) {
+      return hdrAuth.replace(/^bearer\s+/i, "").trim();
+    }
+    const hdrKey = req.headers["x-openai-key"];
+    if (hdrKey && String(hdrKey).trim()) return String(hdrKey).trim();
+  }
+  return envKey || null;
 }
 
-function trimJSON(obj, maxChars = 8000) {
-  const s = JSON.stringify(obj);
-  return s.length <= maxChars ? s : s.slice(0, maxChars) + " …(truncated)…";
+function corsHeaders() {
+  return {
+    "Access-Control-Allow-Origin": "*",
+    "Access-Control-Allow-Headers": "Content-Type, Authorization, X-OpenAI-Key, X-OpenAI-Model",
+    "Access-Control-Allow-Methods": "POST, OPTIONS",
+  };
 }
 
-// --- function entry --------------------------------------------------------
 module.exports = async function (context, req) {
+  if (req.method === "OPTIONS") {
+    context.res = { status: 204, headers: corsHeaders() };
+    return;
+  }
+
+  const apiKey = resolveApiKey(req);
+  if (!apiKey) {
+    context.res = {
+      status: 401,
+      headers: corsHeaders(),
+      jsonBody: { error: "Missing OpenAI API key. Set OPENAI_API_KEY in Azure (or send Authorization/X-OpenAI-Key in local dev)." },
+    };
+    return;
+  }
+
+  let body = {};
   try {
-    const method = (req.method || "GET").toUpperCase();
+    body = typeof req.body === "string" ? JSON.parse(req.body || "{}") : (req.body || {});
+  } catch {
+    body = {};
+  }
 
-    // Preflight for browsers
-    if (method === "OPTIONS") {
-      context.res = cors({ status: 204, body: "" });
-      return;
-    }
+  const {
+    info = {},
+    employees = [],
+    taskLog = [],
+    timeLog = [],
+    photos = [],
+    summaryText = "",
+    metrics = {},
+  } = body;
 
-    // Health check
-    if (method === "GET") {
-      context.res = cors({
-        status: 200,
-        headers: { "Content-Type": "application/json" },
-        body: {
-          ok: true,
-          message: "summarize API is alive",
-          version: 2,
-          features: ["cors", "hm-durations", "metrics-pass-through", "token-cap"],
-          model: MODEL,
-          mode: /localhost|127\.0\.0\.1/.test(String((req.headers && (req.headers.origin || req.headers["x-forwarded-host"])) || "")) ? "local-dev" : "cloud"
-        }
-      });
-      return;
-    }
+  // Helper to keep seconds out of the prose.
+  const hm = (mins) => {
+    const m = Math.max(0, Math.round(mins));
+    const h = Math.floor(m / 60);
+    const mm = m % 60;
+    if (h === 0) return `${mm}m`;
+    if (mm === 0) return `${h}h`;
+    return `${h}h ${mm}m`;
+  };
 
-    // Only POST below here
-    if (method !== "POST") {
-      context.res = cors({ status: 405, body: { error: "Method not allowed" } });
-      return;
-    }
+  // Pull metrics from the frontend; provide conservative defaults.
+  const actualMinutes = Number.isFinite(metrics.actualMinutes) ? metrics.actualMinutes : 0;
+  const touchMinutes  = Number.isFinite(metrics.touchMinutes)  ? metrics.touchMinutes  : 0;
+  const idleMinutes   = Number.isFinite(metrics.idleMinutes)   ? metrics.idleMinutes   : 0;
 
-    // Resolve API key: prefer server env; allow dev override via headers only for localhost
-    const origin = (req.headers && (req.headers.origin || req.headers["x-forwarded-host"])) || "";
-    const isLocalOrigin = /localhost|127\.0\.0\.1/.test(String(origin));
+  const actualHM = hm(actualMinutes);
+  const touchHM  = hm(touchMinutes);
+  const idleHM   = hm(idleMinutes);
 
-    const headerKey =
-      (req.headers &&
-        (req.headers["x-openai-key"] ||
-         req.headers["x-openai-api-key"] ||
-         (typeof req.headers.authorization === "string" && req.headers.authorization.replace(/^Bearer\s+/i, "")))) || "";
+  const utilizationPct = Number.isFinite(metrics.utilizationPct) ? metrics.utilizationPct : 0;
+  const crewHours      = Number.isFinite(metrics.crewHours)      ? metrics.crewHours      : +(touchMinutes/60).toFixed(2);
+  const idleRatioPct   = Number.isFinite(metrics.idleRatioPct)   ? metrics.idleRatioPct   : (touchMinutes + idleMinutes > 0 ? +(idleMinutes / (touchMinutes + idleMinutes) * 100).toFixed(1) : 0);
 
-    const key = process.env.OPENAI_API_KEY || process.env.OPENAI_KEY || (isLocalOrigin ? String(headerKey).trim() : "");
+  const totalEmployees = Number.isFinite(metrics.totalEmployees) ? metrics.totalEmployees : (Array.isArray(employees) ? employees.length : 0);
+  const totalSessions  = Number.isFinite(metrics.totalSessions)  ? metrics.totalSessions  : (Array.isArray(timeLog) ? timeLog.filter(t => t && t.event !== "deleted").length : 0);
 
-    if (!key) {
-      context.res = cors({
-        status: 500,
-        body: {
-          error: "Server missing OPENAI_API_KEY",
-          hint: isLocalOrigin
-            ? "For local testing, send your key in the X-OpenAI-Key header (or Authorization: Bearer ...) OR set OPENAI_API_KEY in your env."
-            : "Set OPENAI_API_KEY in your Azure Function App settings."
-        }
-      });
-      return;
-    }
+  // Build a compact, reliable context (avoid huge logs).
+  const recentNotes = (Array.isArray(taskLog) ? taskLog : []).slice(-12).map(n => n && n.text).filter(Boolean);
+  const samplePhotos = (Array.isArray(photos) ? photos : []).slice(0, 5).map(p => ({
+    name: p?.name || p?.caption || "photo",
+  }));
 
-    const { info, employees, timeLog, taskLog, summaryText } = req.body || {};
+  const model = req.headers["x-openai-model"] || DEFAULT_MODEL;
 
-    // Optional precomputed metrics from client (preferred for consistency/cost)
-    const metrics = req.body?.metrics || {};
-    // Lightly sanitize/trim long strings in task log to reduce token cost
-    const safeTaskLog = Array.isArray(taskLog)
-      ? taskLog.slice(-200).map(t => ({
-          ...t,
-          text: typeof t?.text === "string" ? t.text.slice(0, 300) : ""
-        }))
-      : [];
+  const messages = [
+    {
+      role: "system",
+      content:
+        "You write concise, plain-English work-measurement summaries. NEVER mention seconds; ONLY use hours and minutes (e.g., 0h 3m, 18m, 2h 15m). Be neutral, factual, and readable to non-experts.",
+    },
+    {
+      role: "user",
+      content: JSON.stringify(
+        {
+          header: {
+            date: info?.date || "",
+            endDate: info?.multiDay ? (info?.endDate || "") : "",
+            location: info?.location || "",
+            procedure: info?.procedure || "",
+            workOrder: info?.workOrder || "",
+            task: info?.task || "",
+            type: info?.type || "",
+            workType: info?.workType || "",
+            assetId: info?.assetId || "",
+            station: info?.station || "",
+            supervisor: info?.supervisor || "",
+            observer: info?.observer || "",
+            estimatedTime: info?.estimatedTime || "",
+            observationScope: info?.observationScope || "Full",
+          },
+          crew: {
+            totalEmployees,
+            employees: (Array.isArray(employees) ? employees : []).map(e => ({
+              name: e?.name || "",
+              role: e?.role || "",
+              skill: e?.skill || "",
+            })),
+          },
+          metrics: {
+            actualHM,
+            touchHM,
+            idleHM,
+            utilizationPct,
+            crewHours,
+            idleRatioPct,
+            totalSessions,
+          },
+          notes: recentNotes,
+          photos: samplePhotos,
+          operatorNotes: summaryText || "",
+        },
+        null,
+        2
+      ),
+    },
+    {
+      role: "system",
+      content:
+        [
+          "Write a concise 1–2 paragraph summary:",
+          "• First paragraph: What task, where, and overall timing: Actual, Touch, Idle (hours/minutes only).",
+          "• Second paragraph: Key observations (delays, roles, scope) and efficiency: utilization and crew-hours.",
+          "Rules:",
+          "- DO NOT use seconds; only hours/minutes.",
+          "- Be readable for someone unfamiliar with the task; no jargon.",
+          "- If estimatedTime is present, briefly compare expected vs actual.",
+        ].join("\n"),
+    },
+  ];
 
-    if (!info) {
-      context.res = cors({ status: 400, body: { error: "Missing 'info' in request body" } });
-      return;
-    }
-
-    const compact = {
-      info,
-      metrics, // may include: actualHM, touchHM, idleHM, actualMin, touchMin, idleMin, utilizationPct, crewHours, idleRatioPct
-      employees: (employees || []).map(e => ({
-        name: e?.name,
-        role: e?.role,
-        skill: e?.skill,
-        status: e?.status,
-        elapsedTime: e?.elapsedTime,
-        pausedAccum: e?.pausedAccum
-      })),
-      timeLog: Array.isArray(timeLog) ? timeLog.slice(-300) : [],
-      taskLog: safeTaskLog
-    };
-    const payloadStr = trimJSON(compact, 12000);
-
-    const system = `You are an industrial engineering assistant.
-Write a clear, objective summary for a work measurement study.
-Use professional, neutral language. Keep it concise (6–10 sentences).
-If 'Observation Scope' is partial, mention that.
-STRICTLY express all durations in **hours and minutes only** (no seconds, no decimals, no seconds mentioned).
-You MUST ONLY use the following metrics if present: actualHM, touchHM, idleHM, utilizationPct, crewHours, idleRatioPct, actualMinutes, touchMinutes, idleMinutes.
-Do NOT invent, estimate, or extrapolate durations from log entries or employee fields; do not calculate durations yourself.
-ALWAYS prefer the aggregated metrics above over any raw log or employee fields.
-Never use seconds or fractional minutes. Never invent or infer missing metrics.
-Include: scope, dates, crew makeup, notable pauses/idle causes, KPIs (utilization, crew-hours, idle ratio), and any risks/opportunities.`;
-
-    // Build numeric minute fields for clarity
-    const numeric = {
-      actualMinutes: Number(metrics?.actualMinutes ?? ''),
-      touchMinutes: Number(metrics?.touchMinutes ?? ''),
-      idleMinutes: Number(metrics?.idleMinutes ?? ''),
-      utilizationPct: Number(metrics?.utilizationPct ?? ''),
-      crewHours: Number(metrics?.crewHours ?? ''),
-      idleRatioPct: Number(metrics?.idleRatioPct ?? '')
-    };
-
-    const user = `
-Study data (JSON):
-${payloadStr}
-
-Authoritative metrics (DO NOT DERIVE FROM TASK LOG):
-actualHM=${metrics?.actualHM || ""}, touchHM=${metrics?.touchHM || ""}, idleHM=${metrics?.idleHM || ""}
-actualMinutes=${isNaN(numeric.actualMinutes) ? "" : numeric.actualMinutes}, touchMinutes=${isNaN(numeric.touchMinutes) ? "" : numeric.touchMinutes}, idleMinutes=${isNaN(numeric.idleMinutes) ? "" : numeric.idleMinutes}
-utilizationPct=${isNaN(numeric.utilizationPct) ? "" : numeric.utilizationPct}, crewHours=${isNaN(numeric.crewHours) ? "" : numeric.crewHours}, idleRatioPct=${isNaN(numeric.idleRatioPct) ? "" : numeric.idleRatioPct}
-If a metric is present above, you MUST use it exactly.
-
-If the user typed anything in "Summary" already, you may use it as guidance (optional):
-${summaryText ? `"${String(summaryText).slice(0, 1000)}"` : "(none)"}
-`;
-
-    const resp = await fetch(OPENAI_URL, {
+  // Call OpenAI
+  let summaryTextOut = "";
+  try {
+    const resp = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
       headers: {
-        "Authorization": `Bearer ${key}`,
-        "Content-Type": "application/json"
+        "Authorization": `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: (req.body && req.body.model) || (req.headers && req.headers["x-openai-model"]) || MODEL,
-        temperature: 0.2,
-        max_tokens: 280,
-        messages: [
-          { role: "system", content: system },
-          { role: "user", content: user }
-        ]
-      })
+        model,
+        messages,
+        temperature: 0.3,
+        max_tokens: 350,
+      }),
     });
 
     if (!resp.ok) {
-      const errText = await resp.text().catch(() => "");
-      context.res = cors({ status: 502, body: { error: "OpenAI error", detail: errText } });
-      return;
+      const errTxt = await resp.text().catch(() => "");
+      throw new Error(`OpenAI error ${resp.status}: ${errTxt}`);
     }
-
     const data = await resp.json();
-    const summary = data.choices?.[0]?.message?.content?.trim() || "(no summary)";
-
-    context.res = cors({
-      status: 200,
-      headers: { "Content-Type": "application/json" },
-      body: { summary }
-    });
+    summaryTextOut = data?.choices?.[0]?.message?.content?.trim() || "";
   } catch (err) {
-    context.res = cors({ status: 500, body: { error: err?.message || String(err) } });
+    context.log.error("OpenAI call failed", err);
+    // Fallback templated summary using provided metrics
+    summaryTextOut =
+      `Observed task "${info?.task || ""}" at ${info?.location || "the specified location"}. ` +
+      `Total Actual time ${actualHM}; Touch labor ${touchHM}; Idle ${idleHM}. ` +
+      `Crew size ${totalEmployees} across ${totalSessions} session(s). ` +
+      `Utilization ${utilizationPct}% with ${crewHours} crew-hours and Idle Ratio ${idleRatioPct}%.`;
   }
+
+  context.res = {
+    status: 200,
+    headers: {
+      "Content-Type": "application/json; charset=utf-8",
+      ...corsHeaders(),
+    },
+    body: JSON.stringify({ summary: summaryTextOut }),
+  };
 };

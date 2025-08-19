@@ -1357,28 +1357,27 @@ function cancelTimeEdit() {
         timeLog: sortedTimeLog.map(t => ({
           at: t.at, employeeName: t.employeeName, event: t.event, reasonCode: t.reasonCode || "", comment: t.comment || ""
         })),
-        kpis: {
-          // raw milliseconds
-          actualMs: actualClockMs,
-          touchMs: totalActive,
-          idleMs: totalIdle,
+        metrics: {
+          // minute totals you already compute for the KPI cards
+          actualMinutes: Math.round(Math.max(0, actualClockMs) / 60000),
+          touchMinutes:  Math.round(Math.max(0, totalActive) / 60000),
+          idleMinutes:   Math.round(Math.max(0, totalIdle) / 60000),
 
-          // rounded minutes
-          actualMin: Math.round(Math.max(0, actualClockMs) / 60000),
-          touchMin: Math.round(Math.max(0, totalActive) / 60000),
-          idleMin: Math.round(Math.max(0, totalIdle) / 60000),
-
-          // friendly strings (no seconds)
+          // human-readable strings (no seconds)
           actualHM: msToHM(actualClockMs),
-          touchHM: msToHM(totalActive),
-          idleHM: msToHM(totalIdle),
+          touchHM:  msToHM(totalActive),
+          idleHM:   msToHM(totalIdle),
 
+          // KPIs
           utilizationPct: Number((utilization * 100).toFixed(1)),
-          crewHours: Number(crewHours.toFixed(2)),
-          idleRatioPct: Number((idleRatio * 100).toFixed(1)),
+          crewHours:      Number(crewHours.toFixed(2)),
+          idleRatioPct:   Number((idleRatio * 100).toFixed(1)),
+
+          // optional extras
           totalEmployees: employees.length,
-          totalSessions: timeLog.filter(t => t.event !== "deleted").length,
+          totalSessions:  timeLog.filter(t => t.event !== "deleted").length,
         },
+        summaryText: info.summary || "",
         photos: reportPhotos.map(p => ({ name: p.name || "", caption: p.caption || "" }))
       };
 
