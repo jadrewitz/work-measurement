@@ -117,17 +117,32 @@ module.exports = async function (context, req) {
 Write a clear, objective summary for a work measurement study.
 Use professional, neutral language. Keep it concise (6–10 sentences).
 If 'Observation Scope' is partial, mention that.
-STRICTLY express all durations in **hours and minutes only** (no seconds).
-Prefer client-provided metrics if present (e.g., actualHM, touchHM, idleHM, utilizationPct, crewHours, idleRatioPct).
+STRICTLY express all durations in **hours and minutes only** (no seconds, no decimals, no seconds mentioned).
+You MUST ONLY use the following metrics if present: actualHM, touchHM, idleHM, utilizationPct, crewHours, idleRatioPct, actualMinutes, touchMinutes, idleMinutes.
+Do NOT invent, estimate, or extrapolate durations from log entries or employee fields; do not calculate durations yourself.
+ALWAYS prefer the aggregated metrics above over any raw log or employee fields.
+Never use seconds or fractional minutes. Never invent or infer missing metrics.
 Include: scope, dates, crew makeup, notable pauses/idle causes, KPIs (utilization, crew-hours, idle ratio), and any risks/opportunities.`;
+
+    // Build numeric minute fields for clarity
+    const numeric = {
+      actualMinutes: Number(metrics?.actualMinutes ?? ''),
+      touchMinutes: Number(metrics?.touchMinutes ?? ''),
+      idleMinutes: Number(metrics?.idleMinutes ?? ''),
+      utilizationPct: Number(metrics?.utilizationPct ?? ''),
+      crewHours: Number(metrics?.crewHours ?? ''),
+      idleRatioPct: Number(metrics?.idleRatioPct ?? '')
+    };
 
     const user = `
 Study data (JSON):
 ${payloadStr}
 
-Preferred metrics (if present):
-actualHM=${metrics?.actualHM || ""}, touchHM=${metrics?.touchHM || ""}, idleHM=${metrics?.idleHM || ""},
-utilizationPct=${metrics?.utilizationPct ?? ""}, crewHours=${metrics?.crewHours ?? ""}, idleRatioPct=${metrics?.idleRatioPct ?? ""}
+Authoritative metrics (DO NOT DERIVE FROM TASK LOG):
+actualHM=${metrics?.actualHM || ""}, touchHM=${metrics?.touchHM || ""}, idleHM=${metrics?.idleHM || ""}
+actualMinutes=${isNaN(numeric.actualMinutes) ? "" : numeric.actualMinutes}, touchMinutes=${isNaN(numeric.touchMinutes) ? "" : numeric.touchMinutes}, idleMinutes=${isNaN(numeric.idleMinutes) ? "" : numeric.idleMinutes}
+utilizationPct=${isNaN(numeric.utilizationPct) ? "" : numeric.utilizationPct}, crewHours=${isNaN(numeric.crewHours) ? "" : numeric.crewHours}, idleRatioPct=${isNaN(numeric.idleRatioPct) ? "" : numeric.idleRatioPct}
+If a metric is present above, you MUST use it exactly.
 
 If the user typed anything in "Summary" already, you may use it as guidance (optional):
 ${summaryText ? `"${String(summaryText).slice(0, 1000)}"` : "(none)"}
@@ -142,7 +157,7 @@ ${summaryText ? `"${String(summaryText).slice(0, 1000)}"` : "(none)"}
       body: JSON.stringify({
         model: (req.body && req.body.model) || (req.headers && req.headers["x-openai-model"]) || MODEL,
         temperature: 0.2,
-        max_tokens: 350,
+        max_tokens: 280,
         messages: [
           { role: "system", content: system },
           { role: "user", content: user }
